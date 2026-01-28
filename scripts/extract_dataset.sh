@@ -4,18 +4,23 @@
 
 cd /home/slurm/comp597/students/mreil2/FakeImageDataset/ImageData
 
-# Recursively find all split tar.gz parts, combine and extract
-find . -type f -name "*.tar.gz.*" | while read f; do
-    # Get the base filename (remove .part numbers)
-    base="${f%%.tar.gz.*}.tar.gz"
-    echo "Processing $f -> $base"
+cd /home/slurm/comp597/students/mreil2/FakeImageDataset/ImageData
 
-    # Combine all parts into one tar.gz
-    cat "${f%%.*}".tar.gz.* > "$base"
+# Find all .tar.gz.01 files (first part of each archive)
+find . -type f -name "*.tar.gz.01" | while read first; do
+    # Get the directory and base name
+    dir=$(dirname "$first")
+    base=$(basename "$first" .01)  # removes the .01
+
+    echo "Processing $first -> $dir/$base.tar.gz"
+
+    # Merge all parts in numeric order
+    cat "$dir/$base".* > "$dir/$base.tar.gz"
 
     # Extract
-    tar -xvf "$base"
+    tar -xvf "$dir/$base.tar.gz" -C "$dir"
 
-    # Remove the combined tar.gz to save space
-    rm "$base"
+    # Optional: remove the combined tar.gz to save space
+    # rm "$dir/$base.tar.gz"
 done
+
