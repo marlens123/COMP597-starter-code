@@ -4,8 +4,6 @@
 
 cd /mnt/teaching/slurm/mreil2/FakeImageDataset/ImageData
 
-cd /home/slurm/comp597/students/mreil2/FakeImageDataset/ImageData
-
 # Find all .tar.gz.01 files (first part of each archive)
 find . -type f -name "*.tar.gz.01" | while read first; do
     # Get the directory and base name
