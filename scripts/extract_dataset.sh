@@ -2,7 +2,7 @@
 #SBATCH --time=1:00:00
 #SBATCH --mem=8G
 
-cd /home/slurm/comp597/students/mreil2/FakeImageDataset/ImageData
+cd /mnt/teaching/slurm/mreil2/FakeImageDataset/ImageData
 
 # Recursively find all split tar.gz parts, combine and extract
 find . -type f -name "*.tar.gz.*" | while read f; do
