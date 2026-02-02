@@ -4,7 +4,6 @@
 
 import argparse
 import json
-import multiprocessing
 import os
 from collections import defaultdict
 from pathlib import Path
@@ -58,10 +57,8 @@ def generate(image_size, n, outdir, prefix="", start=0):
             ]
         )
 
-    n_worker = min(multiprocessing.cpu_count(), 8)
-    with multiprocessing.Pool(n_worker) as pool:
-        for _ in tqdm(pool.imap_unordered(write, work_items), total=n):
-            pass
+    for _ in tqdm(pool.imap_unordered(write, work_items), total=n):
+        pass
 
 
 def count_images(path):
