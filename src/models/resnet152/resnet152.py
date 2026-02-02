@@ -88,7 +88,7 @@ def resnet152_init(conf: config.Config, dataset: torch.utils.data.Dataset) -> Tu
     class DataloaderArgs:
         batch_size = conf.batch_size
         loader = "pytorch"
-        num_workers = conf.num_workers
+        num_workers = 0
         data = "data/fakeimagenet"
 
     dataloader_args = DataloaderArgs()
