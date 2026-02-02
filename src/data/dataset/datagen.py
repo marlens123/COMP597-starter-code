@@ -57,8 +57,8 @@ def generate(image_size, n, outdir, prefix="", start=0):
             ]
         )
 
-    for _ in tqdm(pool.imap_unordered(write, work_items), total=n):
-        pass
+    for item in tqdm(work_items):
+        write(item)
 
 
 def count_images(path):
