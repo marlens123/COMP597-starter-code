@@ -89,7 +89,7 @@ def resnet152_init(conf: config.Config, dataset: torch.utils.data.Dataset) -> Tu
         batch_size = conf.batch_size
         loader = "pytorch"
         num_workers = 0
-        data = "data/fakeimagenet/FakeImageNet"
+        data = "/home/slurm/comp597/students/mreil2/fakeimagenet/FakeImageNet"
 
     dataloader_args = DataloaderArgs()
 
