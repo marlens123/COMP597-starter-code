@@ -2,8 +2,7 @@
 import src.config as config # Configurations
 import src.trainer as trainer # Trainer base class
 import src.trainer.stats as trainer_stats # Trainer statistics module
-from src.data.dataset.datagen import generate_fakeimagenet
-from src.data.dataset.dataloader import dataloader_arguments, imagenet_dataloader
+from src.data.dataset.dataloader import imagenet_dataloader
 
 # === import necessary external modules ===
 from typing import Dict, Optional, Tuple
