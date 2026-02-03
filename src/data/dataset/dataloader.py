@@ -65,6 +65,20 @@ class FakeImageClassification(FakeInMemoryDataset):
         super().__init__(producer, batch_size, batch_count)
 
 
+class DictImageFolder(torch.utils.data.Dataset):
+    def __init__(self, folder, transform=None):
+        self.dataset = datasets.ImageFolder(folder, transform)
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        image, label = self.dataset[idx]
+        return {
+            "input": image,
+            "target": label,
+        }
+
 class SyntheticData:
     def __init__(self, tensors, n, fixed_batch):
         self.n = n
@@ -112,7 +126,7 @@ def image_transforms():
 
 
 def pytorch(folder, batch_size, num_workers, distributed=False, epochs=60, rank=None, world_size=None):
-    train = datasets.ImageFolder(folder, image_transforms())
+    train = DictImageFolder(folder, image_transforms())
 
     kwargs = {"shuffle": True}
     if distributed:
