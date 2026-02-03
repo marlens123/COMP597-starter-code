@@ -53,7 +53,8 @@ class FakeInMemoryDataset:
         return len(self.data)
 
     def __getitem__(self, item):
-        return self.data[item]
+        x, y = self.data[item]
+        return {"input": x, "target": y}
 
 
 class FakeImageClassification(FakeInMemoryDataset):

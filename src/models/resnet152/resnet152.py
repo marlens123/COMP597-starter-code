@@ -43,7 +43,8 @@ def pre_init_resnet152() -> resnet152:
         Tuple[transformers.PreTrainedModel, data.Dataset, transformers.PreTrainedTokenizer, transformers.DataCollatorForLanguageModeling]: The GPT-2 model, dataset, tokenizer and data collator.
     """
     model = resnet152(weights="DEFAULT")
-
+    model.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(model.device)
     return model
 
 ################################################################################
