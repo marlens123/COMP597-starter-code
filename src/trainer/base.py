@@ -130,12 +130,7 @@ class Trainer(ABC):
         torch.save(checkpoint_dict, path)
     
     def process_batch(self, i : int, batch : Any) -> Any:
-        if isinstance(batch, dict):
-            return {k: v.to(self.device) for k, v in batch.items()}
-        elif isinstance(batch, (list, tuple)):
-            return [v.to(self.device) for v in batch]
-        else:
-            raise TypeError(f"Unsupported batch type {type(batch)}")
+        return {k: v.to(self.device) for k, v in batch.items()}
     
     @abstractmethod
     def forward(self, i : int, batch : Any, model_kwargs : Dict[str, Any]) -> torch.Tensor:

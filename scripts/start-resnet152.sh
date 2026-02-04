@@ -11,7 +11,8 @@ REPO_DIR=$(readlink -f -n ${SCRIPTS_DIR}/..)
 ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
     --model resnet152 \
-    --trainer simple \
+    --data fakeimagenet \
+    --trainer resnet_simple \
     --batch_size 4 \
     --learning_rate 1e-6 \
     --trainer_stats simple
@@ -20,7 +21,8 @@ ${SCRIPTS_DIR}/srun.sh \
 ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
     --model resnet152 \
-    --trainer simple \
+    --data fakeimagenet \
+    --trainer resnet_simple \
     --batch_size 4 \
     --learning_rate 1e-6 \
     --trainer_stats codecarbon \

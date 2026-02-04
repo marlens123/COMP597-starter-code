@@ -51,7 +51,7 @@ def pre_init_resnet152() -> resnet152:
 #################################    Simple    #################################
 ################################################################################
 
-def simple_trainer(conf : config.Config, model : resnet152, dataloader_args) -> Tuple[trainer.Trainer, Optional[Dict]]:
+def resnet_simple_trainer(conf : config.Config, model : resnet152, dataset : data.Dataset, dataloader_args) -> Tuple[trainer.Trainer, Optional[Dict]]:
     """
     Simple trainer for ResNet152 model. Uses the SimpleTrainer from src/trainer/simple.py.
     Args:
@@ -63,14 +63,14 @@ def simple_trainer(conf : config.Config, model : resnet152, dataloader_args) -> 
     Returns:
         Tuple[trainer.Trainer, Optional[Dict]]: The simple trainer and a dictionary with additional options.
     """ 
-    loader = imagenet_dataloader(dataloader_args, model)
+    loader = imagenet_dataloader(dataset, dataloader_args, model)
 
     model = model.cuda() # Move the model to GPU
     optimizer = init_resnet152_optim(conf, model) # Initialize the optimizer for ResNet152 
     scheduler = optim.lr_scheduler.LinearLR(optimizer=optimizer) # linear scheduler
 
     # Return the SimpleTrainer with the initialized components
-    return trainer.SimpleTrainer(loader=loader, model=model, optimizer=optimizer, lr_scheduler=scheduler, device=model.device, stats=trainer_stats.init_from_conf(conf=conf, device=model.device, num_train_steps=len(loader))), None
+    return trainer.ResNetSimpleTrainer(loader=loader, model=model, optimizer=optimizer, lr_scheduler=scheduler, device=model.device, stats=trainer_stats.init_from_conf(conf=conf, device=model.device, num_train_steps=len(loader))), None
 
 ################################################################################
 ##################################    Init    ##################################
@@ -90,14 +90,13 @@ def resnet152_init(conf: config.Config, dataset: torch.utils.data.Dataset) -> Tu
         batch_size = conf.batch_size
         loader = "pytorch"
         num_workers = 0
-        data = "/home/slurm/comp597/students/mreil2/fakeimagenet/FakeImageNet"
 
     dataloader_args = DataloaderArgs()
 
     model = pre_init_resnet152()
-    # Note: Currently, only Simple trainer is implemented for ResNet152. Add more trainers as needed.
-    if conf.trainer == "simple": 
-        return simple_trainer(conf, model, dataloader_args)
+    # Note: Currently, only ResNetSimple trainer is implemented for ResNet152. Add more trainers as needed.
+    if conf.trainer == "resnet_simple": 
+        return resnet_simple_trainer(conf, model, dataset, dataloader_args)
     else:
         raise Exception(f"Unknown trainer type {conf.trainer}")
 

@@ -69,14 +69,8 @@ class SimpleTrainer(base.Trainer):
     
     def forward(self, i: int, batch: Any, model_kwargs: Dict[str, Any]) -> torch.Tensor:
         self.optimizer.zero_grad() #Zero the gradients
-        if isinstance(batch, dict):
-            outputs = self.model(**batch, **model_kwargs)
-            return outputs.loss
-        elif isinstance(batch, (list, tuple)):
-            criterion = nn.CrossEntropyLoss().to(self.model.device)
-            input, target = batch
-            outputs = self.model(input, **model_kwargs)
-            return criterion(outputs, target)
+        outputs = self.model(**batch, **model_kwargs)
+        return outputs.loss
     
     def backward(self, i: int, loss: torch.Tensor) -> None:
         loss.backward()

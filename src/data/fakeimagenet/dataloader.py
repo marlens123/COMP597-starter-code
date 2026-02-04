@@ -6,8 +6,6 @@ import argparse
 import os
 
 import torch
-import torch.cuda.amp
-import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 from torch.utils.data.distributed import DistributedSampler
 
@@ -110,12 +108,11 @@ def image_transforms():
     return data_transforms
 
 
-def pytorch(folder, batch_size, num_workers, distributed=False, epochs=60, rank=None, world_size=None):
-    train = datasets.ImageFolder(folder, image_transforms())
+def pytorch(dataset, batch_size, num_workers, distributed=False, epochs=60, rank=None, world_size=None):
 
     kwargs = {"shuffle": True}
     if distributed:
-        kwargs["sampler"] = DistributedSampler(train, rank=rank, num_replicas=world_size)
+        kwargs["sampler"] = DistributedSampler(dataset, rank=rank, num_replicas=world_size)
         kwargs["shuffle"] = False
 
     # The dataloader needs a warmup sometimes
@@ -128,7 +125,7 @@ def pytorch(folder, batch_size, num_workers, distributed=False, epochs=60, rank=
         kwargs["shuffle"] = False
 
     return torch.utils.data.DataLoader(
-        train,
+        dataset,
         batch_size=batch_size,
         num_workers=num_workers,
         pin_memory=True,
@@ -154,29 +151,17 @@ def synthetic_random(*args):
     return synthetic(*args, fixed_batch=False)
 
 
-def data_folder(args):
-    if not args.data:
-        data_directory = os.environ.get("MILABENCH_DIR_DATA", None)
-        if data_directory:
-            args.data = os.path.join(data_directory, "FakeImageNet")
-    return args.data
-
-
-def imagenet_dataloader(args, model, rank=0, world_size=1):
+def imagenet_dataloader(dataset, args, model, rank=0, world_size=1):
     if args.loader == "synthetic_random":
-        return synthetic(model=model, batch_size=args.batch_size, fixed_batch=False)
+        raise NotImplementedError
 
     if args.loader == "synthetic_fixed":
-        return synthetic(model=model, batch_size=args.batch_size, fixed_batch=True)
+        raise NotImplementedError
 
     if args.loader == "pytorch_fakedataset":
-        return pytorch_fakedataset(
-            None, batch_size=args.batch_size, num_workers=args.num_workers
-        )
+        raise NotImplementedError
 
-    folder = os.path.join(data_folder(args), "train")
-
-    return pytorch(folder, args.batch_size, args.num_workers, 
+    return pytorch(dataset, args.batch_size, args.num_workers, 
                    distributed=world_size > 1, rank=rank, world_size=world_size)
 
 
