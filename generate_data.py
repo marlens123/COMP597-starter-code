@@ -1,6 +1,6 @@
 from pathlib import Path
 import argparse
-from src.data.dataset.datagen import generate_fakeimagenet
+from src.data.fakeimagenet.datagen import generate_fakeimagenet
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--batch-size", default=512, type=int)
