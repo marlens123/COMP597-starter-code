@@ -88,8 +88,8 @@ def resnet152_init(conf: config.Config, dataset: torch.utils.data.Dataset) -> Tu
 
     class DataloaderArgs:
         batch_size = conf.batch_size
-        loader = "pytorch"
-        num_workers = 0
+        loader = conf.data_configs.fakeimagenet.loader
+        num_workers = conf.data_configs.fakeimagenet.load_num_proc
 
     dataloader_args = DataloaderArgs()
 

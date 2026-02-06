@@ -9,7 +9,4 @@ data_load_name="fakeimagenet"
 def load_data(conf : config.Config) -> torch.utils.data.Dataset:
     """Simple function to load a dataset based on the provided config object.
     """
-
-    # TODO: make this dynamic and add to config
-    folder = "/home/slurm/comp597/students/mreil2/fakeimagenet/FakeImageNet/train"
-    return datasets.ImageFolder(folder, image_transforms())
+    return datasets.ImageFolder(conf.data_configs.fakeimagenet.folder, image_transforms())

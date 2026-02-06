@@ -5,7 +5,7 @@ import torch
 import torch.optim as optim
 import torch.utils.data as data
 import src.trainer.stats as stats
-from typing import Optional
+from typing import Optional, override
 import src.config as config
 
 class ResNetSimpleTrainer(SimpleTrainer):
@@ -20,12 +20,14 @@ class ResNetSimpleTrainer(SimpleTrainer):
                  conf: Optional[config.Config] = None):
         super().__init__(loader=loader, model=model, optimizer=optimizer, lr_scheduler=lr_scheduler, device=device, stats=stats, conf=conf)
 
+    @override
     def process_batch(self, i : int, batch : Any) -> Any:
         if isinstance(batch, (list, tuple)):
             return [v.to(self.device) for v in batch]
         else:
             raise TypeError(f"Unsupported batch type {type(batch)}")
         
+    @override
     def forward(self, i: int, batch: Any, model_kwargs: Dict[str, Any]) -> torch.Tensor:
         """
         Defines loss function and makes forward pass applicable to tuple/list inputs.
