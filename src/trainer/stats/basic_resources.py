@@ -5,11 +5,14 @@ import logging
 import psutil
 import os
 import subprocess
+import src.config as config
 
 logger = logging.getLogger(__name__)
 
 trainer_stats_name="basic_resource_stats"
 
+def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats:
+    return BasicResourcesStats()
 
 class BasicResourcesStats(base.TrainerStats):
     """Stats class that tracks GPU utilization, memory consumption, and I/O."""
