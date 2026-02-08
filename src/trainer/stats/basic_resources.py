@@ -17,10 +17,8 @@ def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats
 class BasicResourcesStats(base.TrainerStats):
     """Stats class that tracks GPU utilization, memory consumption, and I/O."""
 
-
-    def __init__(self, device: torch.device) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.device = device
         self.process = psutil.Process(os.getpid())
         self.last_step_system = {}
 
