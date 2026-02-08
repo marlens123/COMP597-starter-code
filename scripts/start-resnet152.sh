@@ -1,13 +1,10 @@
 #!/bin/bash
 
-# ==============================
-# Run file for GPT2 example - how to use the launch script to run GPT2 with simple trainer
-# ==============================
-
 SCRIPTS_DIR=$(readlink -f -n $(dirname $0))
 REPO_DIR=$(readlink -f -n ${SCRIPTS_DIR}/..)
 
-### run GPT2 Simple Trainer
+
+### run ResNet152 Simple Trainer
 ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
     --model resnet152 \
@@ -18,7 +15,7 @@ ${SCRIPTS_DIR}/srun.sh \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
     --trainer_stats simple
 
-### run GPT2 with CodeCarbon tracking
+### run ResNet152 with CodeCarbon tracking
 ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
     --model resnet152 \
