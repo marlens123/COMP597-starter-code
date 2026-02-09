@@ -9,7 +9,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
-trainer_stats_name="basic_resource_stats"
+trainer_stats_name="basic_resources_stats"
 
 def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats:
     return BasicResourcesStats()
