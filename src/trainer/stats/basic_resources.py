@@ -12,7 +12,12 @@ logger = logging.getLogger(__name__)
 trainer_stats_name="basic_resources_stats"
 
 def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats:
-    return BasicResourcesStats()
+    if "device" in kwargs:
+        device = kwargs["device"]
+    else:
+        logger.warning("No device provided to basic resource trainer stats. Using default PyTorch device")
+        device = torch.get_default_device()
+    return BasicResourcesStats(device=device)
 
 pynvml.nvmlInit()
 
