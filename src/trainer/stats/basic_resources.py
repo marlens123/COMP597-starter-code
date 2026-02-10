@@ -51,6 +51,9 @@ class BasicResourcesStats(base.TrainerStats):
         gpu_util_after = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
 
         return {
+            "ram_mb_abs": (mem_after) / 1e6,
+            "io_read_mb_abs": (io_after.read_bytes) / 1e6,
+            "io_write_mb_abs": (io_after.write_bytes) / 1e6,
             "ram_delta_mb": (mem_after - self.mem_before) / 1e6,
             "io_read_mb": (io_after.read_bytes - self.io_before.read_bytes) / 1e6,
             "io_write_mb": (io_after.write_bytes - self.io_before.write_bytes) / 1e6,
@@ -117,10 +120,12 @@ class BasicResourcesStats(base.TrainerStats):
         sys = getattr(self, "last_step_system", {})
 
         print(
+            f"RAM abs {sys.get('ram_mb_abs', 0):.1f} MB -- "
+            f"I/O R abs {sys.get('io_read_mb_abs', 0):.1f} MB W {sys.get('io_write_mb_abs', 0):.1f} MB -- "
             f"RAM Δ {sys.get('ram_delta_mb', 0):.1f} MB -- "
             f"I/O R {sys.get('io_read_mb', 0):.1f} MB W {sys.get('io_write_mb', 0):.1f} MB -- "
-            f"GPU util {sys.get('gpu_util_before', 0)}%→{sys.get('gpu_util_after', 0)}% -- "
-            f"GPU mem {sys.get('gpu_mem_before_mb', 0):.1f}→{sys.get('gpu_mem_after_mb', 0):.1f} MB"
+            f"GPU util {sys.get('gpu_util_after', 0)}% -- "
+            f"GPU mem {sys.get('gpu_mem_after_mb', 0):.1f} MB"
         )
 
     def log_stats(self) -> None:
