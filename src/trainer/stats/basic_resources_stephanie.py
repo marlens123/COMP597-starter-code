@@ -378,9 +378,3 @@ class BasicResourceStatsStephanie(TrainerStats):
     def log_stats(self, **kwargs):
         """Log arbitrary statistics."""
         self.current_stats.update(kwargs)
-
-
-def construct_trainer_stats(conf, **kwargs):
-    """Initialize resource monitoring stats."""
-    output_dir = getattr(conf, 'stats_output_dir', None)
-    return ResourceMonitoringStats(output_dir=output_dir)
