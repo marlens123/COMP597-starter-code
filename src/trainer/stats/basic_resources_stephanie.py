@@ -380,10 +380,6 @@ class BasicResourceStatsStephanie(TrainerStats):
         self.current_stats.update(kwargs)
 
 
-# Registration name for auto-discovery
-trainer_stats_name = "resource_monitoring"
-
-
 def construct_trainer_stats(conf, **kwargs):
     """Initialize resource monitoring stats."""
     output_dir = getattr(conf, 'stats_output_dir', None)
