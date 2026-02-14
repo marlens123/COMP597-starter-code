@@ -34,7 +34,7 @@ def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats
     else:
         logger.warning("No device provided to basic resource trainer stats. Using default PyTorch device")
         device = torch.get_default_device()
-    return BasicResourceStatsStephanie(device=device)
+    return BasicResourceStatsStephanie()
 
 pynvml.nvmlInit()
 
