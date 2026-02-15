@@ -34,8 +34,7 @@ class BasicResourcesStats(base.TrainerStats):
             device.index if device.index is not None else 0
         )
 
-        self.csv_path = csv_path
-        self.csv_name = csv_name
+        self.csv_path = Path(f"{csv_path}/{csv_name}")
         self.step_idx = 0
         self.csv_file = None
         self.csv_writer = None
@@ -207,8 +206,7 @@ class BasicResourcesStats(base.TrainerStats):
 
         # Initialize writer with header after first row
         if self.csv_writer is None:
-            csv_path = Path(f"{self.csv_path}/{self.csv_name}")
-            self.csv_writer = csv.DictWriter(csv_path, fieldnames=row.keys())
+            self.csv_writer = csv.DictWriter(self.csv_path, fieldnames=row.keys())
             self.csv_writer.writeheader()
 
         self.csv_writer.writerow(row)
