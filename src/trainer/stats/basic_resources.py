@@ -8,6 +8,7 @@ import psutil
 import os
 import csv
 from pathlib import Path
+from typing import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ pynvml.nvmlInit()
 class BasicResourcesStats(base.TrainerStats):
     """Stats class that tracks GPU utilization, memory consumption, and I/O."""
 
-    def __init__(self, device: torch.device, csv_path: str = ".", csv_name: str ="basic_resources_stats.csv") -> None:
+    def __init__(self, device: torch.device, csv_path: str, csv_name: str ="basic_resources_stats.csv") -> None:
         super().__init__()
 
         self.process = psutil.Process(os.getpid())        
