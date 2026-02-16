@@ -206,7 +206,7 @@ class BasicResourcesStats(base.TrainerStats):
 
         # Initialize writer with header after first row
         if self.csv_writer is None:
-            self.csv_writer = csv.DictWriter(self.csv_path, fieldnames=row.keys())
+            self.csv_writer = csv.DictWriter(self.csv_file, fieldnames=row.keys())
             self.csv_writer.writeheader()
 
         self.csv_writer.writerow(row)
