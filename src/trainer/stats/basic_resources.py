@@ -9,6 +9,7 @@ import os
 import csv
 from pathlib import Path
 from typing import Dict
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class BasicResourcesStats(base.TrainerStats):
             device.index if device.index is not None else 0
         )
 
-        self.csv_path = Path(f"{csv_path}/{csv_name}")
+        self.csv_path = Path(f"{csv_path}/{csv_name}_{int(time.time())}.csv")
         self.step_idx = 0
         self.csv_file = None
         self.csv_writer = None
@@ -93,6 +94,7 @@ class BasicResourcesStats(base.TrainerStats):
         self.io_before = self.process.io_counters()
         self.gpu_mem_before = pynvml.nvmlDeviceGetMemoryInfo(self.gpu_handle)
         self.gpu_util_before = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
+        self.cpu_util_before = psutil.cpu_percent(interval=None)
 
     def _capture_after(self):
         mem_after = self.process.memory_info().rss
@@ -101,12 +103,15 @@ class BasicResourcesStats(base.TrainerStats):
         gpu_util_after = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
         gpu_stats = self._get_gpu_stats()
         mem_stats = self._get_memory_stats()
+        cpu_util_after = psutil.cpu_percent(interval=None)
 
         stats = {
+            "cpu_util_before": self.cpu_util_before,
+            "cpu_util_after": cpu_util_after,
             "ram_mb_abs": (mem_after) / 1e6,
+            "ram_delta_mb": (mem_after - self.mem_before) / 1e6,
             "io_read_mb_abs": (io_after.read_bytes) / 1e6,
             "io_write_mb_abs": (io_after.write_bytes) / 1e6,
-            "ram_delta_mb": (mem_after - self.mem_before) / 1e6,
             "io_read_mb": (io_after.read_bytes - self.io_before.read_bytes) / 1e6,
             "io_write_mb": (io_after.write_bytes - self.io_before.write_bytes) / 1e6,
             "gpu_util_before": self.gpu_util_before.gpu,
@@ -184,18 +189,20 @@ class BasicResourcesStats(base.TrainerStats):
             f"I/O R {sys.get('io_read_mb', 0):.1f} MB W {sys.get('io_write_mb', 0):.1f} MB -- "
             f"GPU util {sys.get('gpu_util_after', 0)}% -- "
             f"GPU mem {sys.get('gpu_mem_after_mb', 0):.1f} MB"
+            f"CPU util {sys.get('cpu_util_after', 0)}%"
         )
 
         row = {
             "step": self.step_idx,
             "ram_mb_abs": sys.get("ram_mb_abs", 0),
+            "ram_delta_mb": sys.get("ram_delta_mb", 0),
             "io_read_mb_abs": sys.get("io_read_mb_abs", 0),
             "io_write_mb_abs": sys.get("io_write_mb_abs", 0),
-            "ram_delta_mb": sys.get("ram_delta_mb", 0),
             "io_read_mb": sys.get("io_read_mb", 0),
             "io_write_mb": sys.get("io_write_mb", 0),
             "gpu_util_after": sys.get("gpu_util_after", 0),
             "gpu_mem_after_mb": sys.get("gpu_mem_after_mb", 0),
+            "cpu_util_after": sys.get("cpu_util_after", 0),
             "gpu_util_stephanie": sys.get("gpu_utilization", 0.0),
             "gpu_mem_used_stephanie": sys.get("gpu_memory_used_mb", 0.0),
             "gpu_mem_total_stephanie": sys.get("gpu_memory_total_mb", 0.0),
