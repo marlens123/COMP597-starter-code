@@ -134,7 +134,7 @@ class BasicResourcesStats(base.TrainerStats):
         """Initialize CSV logging."""
         self.step_csv_file = open(self.step_csv_path, mode="w", newline="")
         self.step_csv_writer = None
-        self.substep_csv_file = open(self.substep_csv_path, mode="w", newline="")
+        self.substep_csv_file = open(self.substeps_csv_path, mode="w", newline="")
         self.substep_csv_writer = None
 
     def stop_train(self) -> None:
