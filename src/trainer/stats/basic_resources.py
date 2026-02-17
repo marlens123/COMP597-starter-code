@@ -218,12 +218,12 @@ class BasicResourcesStats(base.TrainerStats):
         }
 
         # Initialize writer with header after first row
-        if self.csv_writer is None:
-            self.csv_writer = csv.DictWriter(self.csv_file, fieldnames=row.keys())
-            self.csv_writer.writeheader()
+        if self.step_csv_writer is None:
+            self.step_csv_writer = csv.DictWriter(self.step_csv_file, fieldnames=row.keys())
+            self.step_csv_writer.writeheader()
 
-        self.csv_writer.writerow(row)
-        self.csv_file.flush()  # important for long runs
+        self.step_csv_writer.writerow(row)
+        self.step_csv_file.flush()  # important for long runs
 
         self.step_idx += 1
 
