@@ -95,6 +95,7 @@ class BasicResourcesStats(base.TrainerStats):
         self.gpu_mem_before = pynvml.nvmlDeviceGetMemoryInfo(self.gpu_handle)
         self.gpu_util_before = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
         self.cpu_util_before = psutil.cpu_percent(interval=None)
+        self.time_before = time.time()
 
     def _capture_after(self):
         mem_after = self.process.memory_info().rss
@@ -104,8 +105,10 @@ class BasicResourcesStats(base.TrainerStats):
         gpu_stats = self._get_gpu_stats()
         mem_stats = self._get_memory_stats()
         cpu_util_after = psutil.cpu_percent(interval=None)
+        time_after = time.time()
 
         stats = {
+            "time_sec": time_after - self.time_before,
             "cpu_util_before": self.cpu_util_before,
             "cpu_util_after": cpu_util_after,
             "ram_mb_abs": (mem_after) / 1e6,
@@ -194,6 +197,7 @@ class BasicResourcesStats(base.TrainerStats):
 
         row = {
             "step": self.step_idx,
+            "time_sec": sys.get("time_sec", 0),
             "ram_mb_abs": sys.get("ram_mb_abs", 0),
             "ram_delta_mb": sys.get("ram_delta_mb", 0),
             "io_read_mb_abs": sys.get("io_read_mb_abs", 0),
