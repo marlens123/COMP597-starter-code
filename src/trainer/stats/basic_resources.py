@@ -36,10 +36,13 @@ class BasicResourcesStats(base.TrainerStats):
             device.index if device.index is not None else 0
         )
 
-        self.csv_path = Path(f"{csv_path}/{csv_name}_{int(time.time())}.csv")
+        self.step_csv_path = Path(f"{csv_path}/{csv_name}_{int(time.time())}.csv")
+        self.substeps_csv_path = Path(f"{csv_path}/{csv_name}_substeps_{int(time.time())}.csv")
         self.step_idx = 0
-        self.csv_file = None
-        self.csv_writer = None
+        self.step_csv_file = None
+        self.step_csv_writer = None
+        self.substep_csv_file = None
+        self.substep_csv_writer = None
 
     def _get_gpu_stats(self) -> Dict[str, float]:
         """Get current GPU statistics."""
@@ -129,13 +132,17 @@ class BasicResourcesStats(base.TrainerStats):
 
     def start_train(self) -> None:
         """Initialize CSV logging."""
-        self.csv_file = open(self.csv_path, mode="w", newline="")
-        self.csv_writer = None
+        self.step_csv_file = open(self.step_csv_path, mode="w", newline="")
+        self.step_csv_writer = None
+        self.substep_csv_file = open(self.substep_csv_path, mode="w", newline="")
+        self.substep_csv_writer = None
 
     def stop_train(self) -> None:
         """Close CSV file."""
-        if self.csv_file is not None:
-            self.csv_file.close()
+        if self.step_csv_file is not None:
+            self.step_csv_file.close()
+        if self.substep_csv_file is not None:
+            self.substep_csv_file.close()
 
     def start_step(self) -> None:
         """Start a training step."""
@@ -146,31 +153,25 @@ class BasicResourcesStats(base.TrainerStats):
         self.last_step_system = self._capture_after()
 
     def start_forward(self) -> None:
-        """Start the forward pass."""
-        pass
+        self._capture_before()
 
     def stop_forward(self) -> None:
-        """Stop the forward pass."""
-        pass
+        self._log_substep("forward")
+
+    def start_backward(self) -> None:
+        self._capture_before()
+
+    def stop_backward(self) -> None:
+        self._log_substep("backward")
+
+    def start_optimizer_step(self) -> None:
+        self._capture_before()
+
+    def stop_optimizer_step(self) -> None:
+        self._log_substep("optimizer")
 
     def log_loss(self, loss: torch.Tensor) -> None:
         """Logs the loss of the current step by passing it to the stats."""
-        pass
-
-    def start_backward(self) -> None:
-        """Start the backward pass."""
-        pass
-
-    def stop_backward(self) -> None:
-        """Stop the backward pass"""
-        pass
-
-    def start_optimizer_step(self) -> None:
-        """Start the optimizer step."""
-        pass
-
-    def stop_optimizer_step(self) -> None:
-        """Stop the optimizer step."""
         pass
 
     def start_save_checkpoint(self) -> None:
@@ -225,6 +226,31 @@ class BasicResourcesStats(base.TrainerStats):
         self.csv_file.flush()  # important for long runs
 
         self.step_idx += 1
+
+    def _log_substep(self, name: str):
+        stats = self._capture_after()
+
+        row = {
+            "step": self.step_idx,
+            "substep": name,
+            "time_sec": stats.get("time_sec", 0),
+            "ram_mb_abs": stats.get("ram_mb_abs", 0),
+            "io_read_mb_abs": stats.get("io_read_mb_abs", 0),
+            "io_write_mb_abs": stats.get("io_write_mb_abs", 0),
+            "gpu_util_after": stats.get("gpu_util_after", 0),
+            "gpu_mem_after_mb": stats.get("gpu_mem_after_mb", 0),
+            "cpu_util_after": stats.get("cpu_util_after", 0),
+        }
+
+        if self.substep_csv_writer is None:
+            self.substep_csv_writer = csv.DictWriter(
+                self.substep_csv_file,
+                fieldnames=row.keys()
+            )
+            self.substep_csv_writer.writeheader()
+
+        self.substep_csv_writer.writerow(row)
+        self.substep_csv_file.flush()
 
     def log_stats(self) -> None:
         """Logs information about the data accumulated so far."""
