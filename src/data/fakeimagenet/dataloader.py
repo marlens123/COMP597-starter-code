@@ -88,7 +88,7 @@ def pytorch_fakedataset(folder, batch_size, num_workers):
         train,
         batch_size=batch_size,
         num_workers=num_workers,
-        pin_memory=False,
+        pin_memory=True,
         shuffle=True,
     )
 
