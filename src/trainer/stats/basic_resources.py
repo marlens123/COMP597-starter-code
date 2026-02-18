@@ -44,6 +44,10 @@ class BasicResourcesStats(base.TrainerStats):
         self.substep_csv_file = None
         self.substep_csv_writer = None
 
+        self.batch_size = None
+        self.world_size = 1
+        self.samples_processed = 0
+
     def _get_gpu_stats(self) -> Dict[str, float]:
         """Get current GPU statistics."""
         stats = {
@@ -144,8 +148,9 @@ class BasicResourcesStats(base.TrainerStats):
         if self.substep_csv_file is not None:
             self.substep_csv_file.close()
 
-    def start_step(self) -> None:
-        """Start a training step."""
+    def start_step(self, batch_size: int = None) -> None:
+        if batch_size is not None:
+            self.batch_size = batch_size
         self._capture_before()
 
     def stop_step(self) -> None:
@@ -185,6 +190,12 @@ class BasicResourcesStats(base.TrainerStats):
     def log_step(self) -> None:
         """Logs information about the previous step."""
         sys = getattr(self, "last_step_system", {})
+        step_time = sys.get("time_sec", 0)
+        global_batch = (self.batch_size or 0) * self.world_size
+
+        throughput = 0.0
+        if step_time > 0 and global_batch > 0:
+            throughput = global_batch / step_time
 
         print(
             f"RAM abs {sys.get('ram_mb_abs', 0):.1f} MB -- "
@@ -215,6 +226,8 @@ class BasicResourcesStats(base.TrainerStats):
             "mem_used_stephanie": sys.get("system_memory_used_mb", 0.0),
             "mem_total_stephanie": sys.get("system_memory_total_mb", 0.0),
             "mem_percent_stephanie": sys.get("system_memory_percent", 0.0),
+            "throughput_samples_per_sec": throughput,
+            "global_batch_size": global_batch,
         }
 
         # Initialize writer with header after first row
