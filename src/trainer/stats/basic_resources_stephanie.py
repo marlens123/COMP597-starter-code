@@ -276,7 +276,7 @@ class BasicResourceStatsStephanie(TrainerStats):
             print(f"  Total steps: {self.step_count}")
             print(f"  Throughput: {summary['avg_samples_per_sec']:.2f} samples/sec")
     
-    def start_step(self):
+    def start_step(self, batch_size):
         """Called at the start of each training step."""
         self.step_start_time = time.time()
         self.step_count += 1
