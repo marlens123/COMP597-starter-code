@@ -64,11 +64,11 @@ class BasicResourcesStats(base.TrainerStats):
         #gpu_mem_after = pynvml.nvmlDeviceGetMemoryInfo(self.gpu_handle)
         gpu_util_after = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
 
-        if torch.cuda.is_available():
+        #if torch.cuda.is_available():
             # PyTorch GPU memory
-            gpu_memory_used_mb = torch.cuda.memory_allocated() / 1024**2
-        else:
-            gpu_memory_used_mb = 0
+        #    gpu_memory_used_mb = torch.cuda.memory_allocated() / 1024**2
+        #else:
+        #    gpu_memory_used_mb = 0
 
         time_after = time.time()
 
@@ -94,7 +94,7 @@ class BasicResourcesStats(base.TrainerStats):
             "io_read_mb": (io_after.read_bytes - self.io_before.read_bytes) / 1e6,
             "io_write_mb": (io_after.write_bytes - self.io_before.write_bytes) / 1e6,
             "gpu_util_moment": gpu_util_after.gpu,
-            "gpu_memory_used_mb": gpu_memory_used_mb,
+            #"gpu_memory_used_mb": gpu_memory_used_mb,
         }
 
         return stats
