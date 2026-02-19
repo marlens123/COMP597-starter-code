@@ -58,6 +58,48 @@ class BasicResourcesStats(base.TrainerStats):
         self.cpu_times_before = self.process.cpu_times()
         self.time_before = time.time()
 
+    def _get_gpu_stats(self) -> Dict[str, float]:
+        """Get current GPU statistics."""
+        stats = {
+            "gpu_utilization": 0.0,
+            "gpu_memory_used_mb": 0.0,
+            "gpu_memory_total_mb": 0.0,
+            "gpu_memory_percent": 0.0,
+        }
+        
+        if torch.cuda.is_available():
+            # PyTorch GPU memory
+            stats["gpu_memory_used_mb"] = torch.cuda.memory_allocated() / 1024**2
+            stats["gpu_memory_total_mb"] = torch.cuda.get_device_properties(0).total_memory / 1024**2
+            stats["gpu_memory_percent"] = (stats["gpu_memory_used_mb"] / stats["gpu_memory_total_mb"]) * 100
+            
+            # NVML stats if available
+            if self.gpu_handle:
+                try:
+                    util = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
+                    stats["gpu_utilization"] = util.gpu
+                except:
+                    pass
+        
+        return stats
+    
+    def _get_memory_stats(self) -> Dict[str, float]:
+        """Get system memory statistics."""
+        try:
+            import psutil
+            mem = psutil.virtual_memory()
+            return {
+                "system_memory_used_mb": mem.used / 1024**2,
+                "system_memory_total_mb": mem.total / 1024**2,
+                "system_memory_percent": mem.percent,
+            }
+        except ImportError:
+            return {
+                "system_memory_used_mb": 0.0,
+                "system_memory_total_mb": 0.0,
+                "system_memory_percent": 0.0,
+            }
+
     def _capture_after(self):
         mem_after = self.process.memory_info().rss
         io_after = self.process.io_counters()
@@ -89,6 +131,11 @@ class BasicResourcesStats(base.TrainerStats):
             "gpu_util_moment": gpu_util_after.gpu,
             "gpu_mem_moment_mb": gpu_mem_after.used / 1e6,
         }
+        gpu_stats = self._get_gpu_stats()
+        mem_stats = self._get_memory_stats()
+        stats.update(gpu_stats)
+        stats.update(mem_stats)
+
         return stats
 
     def start_train(self) -> None:
