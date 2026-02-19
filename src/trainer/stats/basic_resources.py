@@ -154,6 +154,16 @@ class BasicResourcesStats(base.TrainerStats):
         if step_time > 0 and global_batch > 0:
             throughput = global_batch / step_time
 
+        print(
+            f"RAM abs {sys.get('ram_mb_abs', 0):.1f} MB -- "
+            f"I/O R abs {sys.get('io_read_mb_abs', 0):.1f} MB W {sys.get('io_write_mb_abs', 0):.1f} MB -- "
+            f"RAM Δ {sys.get('ram_delta_mb', 0):.1f} MB -- "
+            f"I/O R {sys.get('io_read_mb', 0):.1f} MB W {sys.get('io_write_mb', 0):.1f} MB -- "
+            f"GPU util {sys.get('gpu_util_moment', 0)}% -- "
+            f"GPU mem {sys.get('gpu_mem_moment_mb', 0):.1f} MB"
+            f"CPU util {sys.get('cpu_util_percent', 0)}%"
+        )
+
         row = {
             "step": self.step_idx,
             "time_sec": sys.get("time_sec", 0),
