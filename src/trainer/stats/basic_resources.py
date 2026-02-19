@@ -71,6 +71,8 @@ class BasicResourcesStats(base.TrainerStats):
         #    gpu_memory_percent = (gpu_memory_used_mb / gpu_memory_total_mb) * 100 if gpu_memory_total_mb > 0 else 0
 
         gpu_memory_used_mb = 0
+        gpu_memory_total_mb = 0
+        gpu_memory_percent = 0
 
         time_after = time.time()
 
