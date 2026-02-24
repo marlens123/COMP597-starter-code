@@ -12,7 +12,7 @@ ${SCRIPTS_DIR}/srun.sh \
     --batch_size 4 \
     --learning_rate 1e-6 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
-    --trainer_stats codecarbon \
+    --trainer_stats codecarbon_resnet \
     --trainer_stats_configs.codecarbon.run_num 0 \
     --trainer_stats_configs.codecarbon.project_name test \
     --trainer_stats_configs.codecarbon.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/codecarbonlogs'
