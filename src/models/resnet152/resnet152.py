@@ -32,8 +32,6 @@ def init_resnet152_optim(conf: config.Config, model: nn.Module) -> optim.Optimiz
     # Note: The learning rate is taken from the configuration object. Adjust it as needed for different models and training setups based on the loss function.
     # Here we use SGD as in the Mila Benchmark
 
-    #return optim.SGD(model.parameters(), lr=conf.learning_rate, momentum=0.9)
-
     return optim.SGD(model.parameters(), lr=conf.learning_rate)
 
 def pre_init_resnet152() -> resnet152:
@@ -70,9 +68,8 @@ def resnet_simple_trainer(conf : config.Config, model : resnet152, dataset : dat
 
     model = model.cuda() # Move the model to GPU
     optimizer = init_resnet152_optim(conf, model) # Initialize the optimizer for ResNet152 
-    #scheduler = optim.lr_scheduler.LinearLR(optimizer=optimizer) # linear scheduler
-    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda step: 1.0)
-
+    scheduler = optim.lr_scheduler.LinearLR(optimizer=optimizer) # linear scheduler
+    
     # Return the SimpleTrainer with the initialized components
     return trainer.ResNetSimpleTrainer(loader=loader, model=model, optimizer=optimizer, lr_scheduler=scheduler, device=model.device, stats=trainer_stats.init_from_conf(conf=conf, device=model.device, num_train_steps=len(loader))), None
 
