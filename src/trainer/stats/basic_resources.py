@@ -8,8 +8,6 @@ import psutil
 import os
 import csv
 from pathlib import Path
-from typing import Dict
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -23,18 +21,23 @@ def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats
         device = torch.get_default_device()
     return BasicResourcesStats(device=device, csv_path=conf.trainer_stats_configs.basic_resources.output_dir)
 
-pynvml.nvmlInit()
-
 class BasicResourcesStats(base.TrainerStats):
     """Stats class that tracks GPU utilization, memory consumption, and I/O."""
 
     def __init__(self, device: torch.device, csv_path: str, csv_name: str ="basic_resources_stats") -> None:
         super().__init__()
 
-        self.process = psutil.Process(os.getpid())        
-        self.gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(
-            device.index if device.index is not None else 0
-        )
+        self.process = psutil.Process(os.getpid())   
+
+        if torch.cuda.is_available():
+            pynvml.nvmlInit()
+            self.gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(
+                device.index if device.index is not None else torch.cuda.current_device()
+            )
+        else:
+            self.gpu_handle = None
+
+        Path(csv_path).mkdir(parents=True, exist_ok=True)
 
         self.step_csv_path = Path(f"{csv_path}/{csv_name}_{int(time.time())}.csv")
         self.substeps_csv_path = Path(f"{csv_path}/{csv_name}_substeps_{int(time.time())}.csv")
@@ -48,53 +51,102 @@ class BasicResourcesStats(base.TrainerStats):
         self.world_size = 1
         self.samples_processed = 0
 
-    def _reset_system_counters(self):
-        self.mem_before = None
-        self.io_before = None
+    def _capture_before_step(self):
+        self.mem_before_step = self.process.memory_info().rss
+        self.io_before_step = self.process.io_counters()
+        self.cpu_times_before_step = self.process.cpu_times()
+        self.time_before_step = time.time()
 
-    def _capture_before(self):
-        self.mem_before = self.process.memory_info().rss
-        self.io_before = self.process.io_counters()
-        self.cpu_times_before = self.process.cpu_times()
-        self.time_before = time.time()
+    def _capture_before_substep(self):
+        self.mem_before_substep = self.process.memory_info().rss
+        self.io_before_substep = self.process.io_counters()
+        self.cpu_times_before_substep = self.process.cpu_times()
+        self.time_before_substep = time.time()
 
-    def _capture_after(self):
+    def _capture_after_step(self):
         mem_after = self.process.memory_info().rss
         io_after = self.process.io_counters()
-        #gpu_mem_after = pynvml.nvmlDeviceGetMemoryInfo(self.gpu_handle)
-        gpu_util_after = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
 
-        #if torch.cuda.is_available():
+        if self.gpu_handle is not None:
+            gpu_util_after = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
+        else:
+            gpu_util_after = None
+
+        if torch.cuda.is_available():
             # PyTorch GPU memory
-        #    gpu_memory_used_mb = torch.cuda.memory_allocated() / 1024**2
-        #else:
-        #    gpu_memory_used_mb = 0
+            gpu_memory_used_mb = torch.cuda.memory_allocated() / 1024**2
+        else:
+            gpu_memory_used_mb = 0
 
         time_after = time.time()
 
         cpu_times_after = self.process.cpu_times()
 
         cpu_time_delta = (
-            (cpu_times_after.user - self.cpu_times_before.user)
-            + (cpu_times_after.system - self.cpu_times_before.system)
+            (cpu_times_after.user - self.cpu_times_before_step.user)
+            + (cpu_times_after.system - self.cpu_times_before_step.system)
         )
 
-        wall_time_delta = time_after - self.time_before
+        wall_time_delta = time_after - self.time_before_step
 
         cpu_util_percent = 100 * cpu_time_delta / wall_time_delta
 
 
         stats = {
-            "time_sec": time_after - self.time_before,
+            "time_sec": time_after - self.time_before_step,
             "cpu_util_percent": cpu_util_percent,
-            "ram_mb_abs": (mem_after) / 1e6,
-            "ram_delta_mb": (mem_after - self.mem_before) / 1e6,
+            "ram_mb_abs": (mem_after) / 1024**2,
+            "ram_delta_mb": (mem_after - self.mem_before_step) / 1024**2,
             "io_read_mb_abs": (io_after.read_bytes) / 1e6,
             "io_write_mb_abs": (io_after.write_bytes) / 1e6,
-            "io_read_mb": (io_after.read_bytes - self.io_before.read_bytes) / 1e6,
-            "io_write_mb": (io_after.write_bytes - self.io_before.write_bytes) / 1e6,
+            "io_read_mb": (io_after.read_bytes - self.io_before_step.read_bytes) / 1e6,
+            "io_write_mb": (io_after.write_bytes - self.io_before_step.write_bytes) / 1e6,
             "gpu_util_moment": gpu_util_after.gpu,
-            #"gpu_memory_used_mb": gpu_memory_used_mb,
+            "gpu_memory_used_mb": gpu_memory_used_mb,
+        }
+
+        return stats
+    
+    def _capture_after_substep(self):
+        mem_after = self.process.memory_info().rss
+        io_after = self.process.io_counters()
+
+        if self.gpu_handle is not None:
+            gpu_util_after = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
+        else:
+            gpu_util_after = None
+
+        if torch.cuda.is_available():
+            # PyTorch GPU memory
+            gpu_memory_used_mb = torch.cuda.memory_allocated() / 1024**2
+        else:
+            gpu_memory_used_mb = 0
+
+        time_after = time.time()
+
+        cpu_times_after = self.process.cpu_times()
+
+        cpu_time_delta = (
+            (cpu_times_after.user - self.cpu_times_before_substep.user)
+            + (cpu_times_after.system - self.cpu_times_before_substep.system)
+        )
+
+        wall_time_delta = time_after - self.time_before_substep
+
+        cpu_util_percent = 100 * cpu_time_delta / wall_time_delta
+
+
+        stats = {
+            "time_sec": time_after - self.time_before_substep,
+            "cpu_util_percent": cpu_util_percent,
+            "ram_mb_abs": (mem_after) / 1e6,
+            "ram_delta_mb": (mem_after - self.mem_before_substep) / 1e6,
+            "io_read_mb_abs": (io_after.read_bytes) / 1e6,
+            "io_write_mb_abs": (io_after.write_bytes) / 1e6,
+            "io_read_mb": (io_after.read_bytes - self.io_before_substep.read_bytes) / 1e6,
+            "io_write_mb": (io_after.write_bytes - self.io_before_substep.write_bytes) / 1e6,
+            "gpu_util_moment": gpu_util_after.gpu,
+            "gpu_memory_used_mb": gpu_memory_used_mb,
         }
 
         return stats
@@ -113,29 +165,32 @@ class BasicResourcesStats(base.TrainerStats):
         if self.substep_csv_file is not None:
             self.substep_csv_file.close()
 
+        if torch.cuda.is_available():
+            pynvml.nvmlShutdown()
+
     def start_step(self, batch_size: int = None) -> None:
         if batch_size is not None:
             self.batch_size = batch_size
-        self._capture_before()
+        self._capture_before_step()
 
     def stop_step(self) -> None:
         """Stop a training step."""
-        self.last_step_system = self._capture_after()
+        self.last_step_system = self._capture_after_step()
 
     def start_forward(self) -> None:
-        self._capture_before()
+        self._capture_before_substep()
 
     def stop_forward(self) -> None:
         self._log_substep("forward")
 
     def start_backward(self) -> None:
-        self._capture_before()
+        self._capture_before_substep()
 
     def stop_backward(self) -> None:
         self._log_substep("backward")
 
     def start_optimizer_step(self) -> None:
-        self._capture_before()
+        self._capture_before_substep()
 
     def stop_optimizer_step(self) -> None:
         self._log_substep("optimizer")
@@ -189,7 +244,7 @@ class BasicResourcesStats(base.TrainerStats):
         self.step_idx += 1
 
     def _log_substep(self, name: str):
-        stats = self._capture_after()
+        stats = self._capture_after_substep()
 
         row = {
             "step": self.step_idx,
