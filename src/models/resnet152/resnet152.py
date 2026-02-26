@@ -14,6 +14,17 @@ import argparse
 from pathlib import Path
 import torch
 
+from torch.optim.lr_scheduler import LRScheduler
+
+# Write a noop scheduler since we don't use it in ResNet but the trainer function expects one
+class NoOpLRScheduler(LRScheduler):
+    def __init__(self, optimizer):
+        super().__init__(optimizer)
+
+    def get_lr(self):
+        # Return current learning rates unchanged
+        return [group["lr"] for group in self.optimizer.param_groups]
+
 """
 This file contains the code to train a ResNet152 model using Simple trainer (src/trainer/simple.py).
 It is based on the ResNet152 model from TorchVision.
@@ -68,7 +79,7 @@ def resnet_simple_trainer(conf : config.Config, model : resnet152, dataset : dat
 
     model = model.cuda() # Move the model to GPU
     optimizer = init_resnet152_optim(conf, model) # Initialize the optimizer for ResNet152 
-    scheduler = optim.lr_scheduler.LinearLR(optimizer=optimizer) # linear scheduler
+    scheduler = NoOpLRScheduler(optimizer=optimizer)
     
     # Return the SimpleTrainer with the initialized components
     return trainer.ResNetSimpleTrainer(loader=loader, model=model, optimizer=optimizer, lr_scheduler=scheduler, device=model.device, stats=trainer_stats.init_from_conf(conf=conf, device=model.device, num_train_steps=len(loader))), None

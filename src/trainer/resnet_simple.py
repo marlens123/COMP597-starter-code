@@ -94,3 +94,11 @@ class ResNetSimpleTrainer(SimpleTrainer):
         self.stats.stop_train()
         progress_bar.close()
         self.stats.log_stats()
+
+    def checkpoint_dict(self, i: int) -> Dict[str, Any]:
+        super_dict = super().checkpoint_dict(i)
+        super_dict["optimizer_state_dict"] = self.optimizer.state_dict()
+        return super_dict
+
+    def optimizer_step(self, i: int) -> None:
+        self.optimizer.step()
