@@ -8,6 +8,7 @@ import psutil
 import os
 import csv
 from pathlib import Path
+from torch.utils.tensorboard import SummaryWriter
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class BasicResourcesStats(base.TrainerStats):
             self.gpu_handle = None
 
         Path(csv_path).mkdir(parents=True, exist_ok=True)
+        self.writer = SummaryWriter(log_dir=csv_path)
 
         self.step_csv_path = Path(f"{csv_path}/{csv_name}_{int(time.time())}.csv")
         self.substeps_csv_path = Path(f"{csv_path}/{csv_name}_substeps_{int(time.time())}.csv")
@@ -168,6 +170,8 @@ class BasicResourcesStats(base.TrainerStats):
         if torch.cuda.is_available():
             pynvml.nvmlShutdown()
 
+        self.writer.close()
+
     def start_step(self, batch_size: int = None) -> None:
         if batch_size is not None:
             self.batch_size = batch_size
@@ -240,6 +244,13 @@ class BasicResourcesStats(base.TrainerStats):
 
         self.step_csv_writer.writerow(row)
         self.step_csv_file.flush()  # important for long runs
+
+        self.writer.add_scalar("System/StepTime", row["time_sec"], self.step_idx)
+        self.writer.add_scalar("System/GPU_Util", row["gpu_util_moment"], self.step_idx)
+        self.writer.add_scalar("System/GPU_Memory_MB", row["gpu_mem_used_mb"], self.step_idx)
+        self.writer.add_scalar("System/CPU_Util", row["cpu_util_percent"], self.step_idx)
+        self.writer.add_scalar("System/RAM_MB", row["ram_mb_abs"], self.step_idx)
+        self.writer.add_scalar("System/Throughput", row["throughput_samples_per_sec"], self.step_idx)
 
         self.step_idx += 1
 
