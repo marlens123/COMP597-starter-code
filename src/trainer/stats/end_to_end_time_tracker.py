@@ -26,7 +26,7 @@ class EndToEndTrainerStats(base.TrainerStats):
         self.end_time = time()
         print(f"End-to-end time without logging: {self.end_time - self.start_time}.")
 
-    def start_step(self) -> None:
+    def start_step(self, batch_size: int = None) -> None:
         pass
 
     def stop_step(self) -> None:
