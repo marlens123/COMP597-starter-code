@@ -255,7 +255,7 @@ class BasicResourcesStats(base.TrainerStats):
             "throughput_samples_per_sec": throughput,
             "global_batch_size": global_batch,
         }
-        self._nvml_accumulator["gpu_util"].append(row["gpu_util_moment"])
+        self._nvml_accumulator["gpu_util"].append(sys.get("gpu_util_moment", 0))
 
         if self.step_idx % self.nvml_log_interval == 0:
             avg_gpu_util = self._get_nvml_average()
