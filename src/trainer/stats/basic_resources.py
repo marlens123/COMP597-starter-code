@@ -37,6 +37,12 @@ class BasicResourcesStats(base.TrainerStats):
         else:
             self.gpu_handle = None
 
+        self.nvml_log_interval = 15
+
+        self._nvml_accumulator = {
+            "gpu_util": [],
+        }
+
         Path(csv_path).mkdir(parents=True, exist_ok=True)
 
         self.step_csv_path = Path(f"{csv_path}/{csv_name}_{int(time.time())}.csv")
@@ -135,7 +141,6 @@ class BasicResourcesStats(base.TrainerStats):
 
         cpu_util_percent = 100 * cpu_time_delta / wall_time_delta
 
-
         stats = {
             "time_sec": time_after - self.time_before_substep,
             "cpu_util_percent": cpu_util_percent,
@@ -153,6 +158,8 @@ class BasicResourcesStats(base.TrainerStats):
 
     def start_train(self) -> None:
         """Initialize CSV logging."""
+        self.training_time_start = time.time()
+
         self.step_csv_file = open(self.step_csv_path, mode="w", newline="")
         self.step_csv_writer = None
         self.substep_csv_file = open(self.substeps_csv_path, mode="w", newline="")
@@ -167,6 +174,10 @@ class BasicResourcesStats(base.TrainerStats):
 
         if torch.cuda.is_available():
             pynvml.nvmlShutdown()
+
+        self.training_time_end = time.time()
+
+        print(f"End-to-end training time with logging: {self.training_time_end - self.training_time_start}.")
 
     def start_step(self, batch_size: int = None) -> None:
         if batch_size is not None:
@@ -207,6 +218,19 @@ class BasicResourcesStats(base.TrainerStats):
         """Stop checkpointing."""
         pass
 
+    def _get_nvml_average(self):
+        if not self._nvml_accumulator["gpu_util"]:
+            return
+
+        avg_gpu_util = sum(self._nvml_accumulator["gpu_util"]) / len(self._nvml_accumulator["gpu_util"])
+
+        # Reset accumulator
+        self._nvml_accumulator["gpu_util"].clear()
+        return avg_gpu_util
+
+    def _generate_plots(self):
+        pass
+
     def log_step(self) -> None:
         """Logs information about the previous step."""
         sys = getattr(self, "last_step_system", {})
@@ -226,12 +250,18 @@ class BasicResourcesStats(base.TrainerStats):
             "io_write_mb_abs": sys.get("io_write_mb_abs", 0),
             "io_read_mb": sys.get("io_read_mb", 0),
             "io_write_mb": sys.get("io_write_mb", 0),
-            "gpu_util_moment": sys.get("gpu_util_moment", 0),
             "gpu_mem_used_mb": sys.get("gpu_memory_used_mb", 0),
             "cpu_util_percent": sys.get("cpu_util_percent", 0),
             "throughput_samples_per_sec": throughput,
             "global_batch_size": global_batch,
         }
+        self._nvml_accumulator["gpu_util"].append(row["gpu_util_moment"])
+
+        if self.step_idx % self.nvml_log_interval == 0:
+            avg_gpu_util = self._get_nvml_average()
+            row["gpu_util_moment"] = avg_gpu_util
+        else:
+            row["gpu_util_moment"] = None
 
         # Initialize writer with header after first row
         if self.step_csv_writer is None:
@@ -253,7 +283,6 @@ class BasicResourcesStats(base.TrainerStats):
             "ram_mb_abs": stats.get("ram_mb_abs", 0),
             "io_read_mb_abs": stats.get("io_read_mb_abs", 0),
             "io_write_mb_abs": stats.get("io_write_mb_abs", 0),
-            "gpu_util_moment": stats.get("gpu_util_moment", 0),
             "gpu_mem_used_mb": stats.get("gpu_memory_used_mb", 0),
             "cpu_util_percent": stats.get("cpu_util_percent", 0),
         }
