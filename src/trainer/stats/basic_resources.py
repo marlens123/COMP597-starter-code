@@ -261,29 +261,33 @@ class BasicResourcesStats(base.TrainerStats):
             ax.tick_params(labelbottom=True)
 
         def _single_plot(ax, x, y_column, ylabel, title):
-            y = df[y_column].fillna(0)    
-            
+
+            if y_column not in df.columns:
+                ax.set_visible(False)
+                return
+
+            y = pd.to_numeric(df[y_column], errors="coerce").fillna(0)
+
             ax.plot(x, y, linewidth=1.5)
 
-            average_y = np.mean(y)
+            avg = np.mean(y)
 
             ax.set_ylabel(ylabel)
-            ax.set_title(f"{title} (Average: {average_y:.2f})")
+            ax.set_title(f"{title} (Average: {avg:.2f})")
             ax.grid(alpha=0.3)
-
             ax.set_xlabel("Step")
 
             ax.set_ylim(bottom=0)
-            ax.set_ylim(top=y.max() * 1.1)
+            if y.max() > 0:
+                ax.set_ylim(top=y.max() * 1.1)
 
         # Row 1
-        _single_plot(axes[0,0], x, df["gpu_util_moment"], "GPU Util (%)", "GPU Utilization")
-        _single_plot(axes[0,1], x, df["gpu_mem_used_mb"], "GPU Mem (MB)", "GPU Memory")
-        _single_plot(axes[0,2], x, df["ram_mb_abs"], "RAM (MB)", "RAM Usage")
+        _single_plot(axes[0,0], x, "gpu_util_moment", "GPU Util (%)", "GPU Utilization")
+        _single_plot(axes[0,1], x, "gpu_mem_used_mb", "GPU Mem (MB)", "GPU Memory")
+        _single_plot(axes[0,2], x, "ram_mb_abs", "RAM (MB)", "RAM Usage")
 
-        # Row 2
-        _single_plot(axes[1,0], x, df["throughput_samples_per_sec"], "Samples / sec", "Throughput")
-        _single_plot(axes[1,1], x, df["time_sec"], "Time (sec)", "Step Time")
+        _single_plot(axes[1,0], x, "throughput_samples_per_sec", "Samples / sec", "Throughput")
+        _single_plot(axes[1,1], x, "time_sec", "Time (sec)", "Step Time")
 
         # Remove unused subplot instead of leaving it empty
         fig.delaxes(axes[1,2])
