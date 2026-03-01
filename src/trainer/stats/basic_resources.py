@@ -8,6 +8,8 @@ import psutil
 import os
 import csv
 from pathlib import Path
+import numpy as np
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +21,12 @@ def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats
     else:
         logger.warning("No device provided to basic resource trainer stats. Using default PyTorch device")
         device = torch.get_default_device()
-    return BasicResourcesStats(device=device, csv_path=conf.trainer_stats_configs.basic_resources.output_dir)
+    return BasicResourcesStats(device=device, output_path=conf.trainer_stats_configs.basic_resources.output_dir)
 
 class BasicResourcesStats(base.TrainerStats):
     """Stats class that tracks GPU utilization, memory consumption, and I/O."""
 
-    def __init__(self, device: torch.device, csv_path: str, csv_name: str ="basic_resources_stats") -> None:
+    def __init__(self, device: torch.device, output_path: str, csv_name: str ="basic_resources_stats") -> None:
         super().__init__()
 
         self.process = psutil.Process(os.getpid())   
@@ -43,10 +45,13 @@ class BasicResourcesStats(base.TrainerStats):
             "gpu_util": [],
         }
 
-        Path(csv_path).mkdir(parents=True, exist_ok=True)
+        self.output_path = output_path
+        self.logging_timestamp = int(time.time())
 
-        self.step_csv_path = Path(f"{csv_path}/{csv_name}_{int(time.time())}.csv")
-        self.substeps_csv_path = Path(f"{csv_path}/{csv_name}_substeps_{int(time.time())}.csv")
+        Path(self.output_path).mkdir(parents=True, exist_ok=True)
+
+        self.step_csv_path = Path(f"{self.output_path}/{csv_name}_{self.logging_timestamp}.csv")
+        self.substeps_csv_path = Path(f"{self.output_path}/{csv_name}_substeps_{self.logging_timestamp}.csv")
         self.step_idx = 0
         self.step_csv_file = None
         self.step_csv_writer = None
@@ -178,6 +183,7 @@ class BasicResourcesStats(base.TrainerStats):
         self.training_time_end = time.time()
 
         print(f"End-to-end training time with logging: {self.training_time_end - self.training_time_start}.")
+        self._generate_plots()
 
     def start_step(self, batch_size: int = None) -> None:
         if batch_size is not None:
@@ -229,7 +235,66 @@ class BasicResourcesStats(base.TrainerStats):
         return avg_gpu_util
 
     def _generate_plots(self):
-        pass
+        import pandas as pd
+        import matplotlib.pyplot as plt
+
+        df = pd.read_csv(self.step_csv_path)
+
+        if df.empty:
+            logger.warning("No data available for plotting.")
+            return
+
+        x = df["step"]
+
+        fig, axes = plt.subplots(
+            2, 3,
+            figsize=(18, 8),
+            sharex=True
+        )
+        fig.suptitle('ResNet152 Basic Training Metrics', fontsize=16, fontweight='bold')
+
+        for ax in axes.flat:
+            ax.tick_params(labelbottom=True)
+
+        def _single_plot(ax, x, y_column, ylabel, title):
+            if y_column not in df.columns:
+                ax.set_visible(False)
+                return
+
+            y = df[y_column].fillna(0)    
+            
+            ax.plot(x, y, linewidth=1.5)
+
+            average_y = np.mean(y)
+
+            ax.set_ylabel(ylabel)
+            ax.set_title(f"{title} (Average: {average_y:.2f})")
+            ax.grid(alpha=0.3)
+
+            ax.set_xlabel("Step")
+
+            ax.set_ylim(bottom=0)
+            ax.set_ylim(top=y.max() * 1.1)
+
+        # Row 1
+        _single_plot(axes[0,0], x, df["gpu_util_moment"], "GPU Util (%)", "GPU Utilization")
+        _single_plot(axes[0,1], x, df["gpu_mem_used_mb"], "GPU Mem (MB)", "GPU Memory")
+        _single_plot(axes[0,2], x, df["ram_mb_abs"], "RAM (MB)", "RAM Usage")
+
+        # Row 2
+        _single_plot(axes[1,0], x, df["throughput_samples_per_sec"], "Samples / sec", "Throughput")
+        _single_plot(axes[1,1], x, df["time_sec"], "Time (sec)", "Step Time")
+
+        # Remove unused subplot instead of leaving it empty
+        fig.delaxes(axes[1,2])
+
+        plt.tight_layout()
+
+        # Save figure
+        output_file = Path(self.output_path) / f"basic_training_metrics_{self.logging_timestamp}.png"
+        plt.savefig(output_file, dpi=150, bbox_inches="tight")
+        plt.close()
+
 
     def log_step(self) -> None:
         """Logs information about the previous step."""
