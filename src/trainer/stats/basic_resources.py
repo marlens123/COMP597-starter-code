@@ -238,6 +238,10 @@ class BasicResourcesStats(base.TrainerStats):
         import pandas as pd
         import matplotlib.pyplot as plt
 
+        # =========================
+        # Step duration plots
+        # =========================
+
         df = pd.read_csv(self.step_csv_path)
 
         if df.empty:
@@ -257,10 +261,6 @@ class BasicResourcesStats(base.TrainerStats):
             ax.tick_params(labelbottom=True)
 
         def _single_plot(ax, x, y_column, ylabel, title):
-            if y_column not in df.columns:
-                ax.set_visible(False)
-                return
-
             y = df[y_column].fillna(0)    
             
             ax.plot(x, y, linewidth=1.5)
@@ -294,6 +294,62 @@ class BasicResourcesStats(base.TrainerStats):
         output_file = Path(self.output_path) / f"basic_training_metrics_{self.logging_timestamp}.png"
         plt.savefig(output_file, dpi=150, bbox_inches="tight")
         plt.close()
+
+        # =========================
+        # Substep duration plots
+        # =========================
+
+        sub_df = pd.read_csv(self.substeps_csv_path)
+
+        if sub_df.empty:
+            logger.warning("No substep data available for plotting.")
+            return
+
+        # Ensure numeric
+        sub_df["time_sec"] = pd.to_numeric(sub_df["time_sec"], errors="coerce").fillna(0)
+
+        # Pivot to get forward/backward/optimizer per step
+        pivot = sub_df.pivot_table(
+            index="step",
+            columns="substep",
+            values="time_sec",
+            aggfunc="sum"
+        ).fillna(0)
+
+        steps = pivot.index
+
+        fig2, axes2 = plt.subplots(1, 2, figsize=(16, 6))
+
+        # --------------------------------
+        # (1) Substep duration over steps
+        # --------------------------------
+        for col in pivot.columns:
+            axes2[0].plot(steps, pivot[col], label=col)
+
+        axes2[0].set_title("Substep Duration per Step")
+        axes2[0].set_xlabel("Step")
+        axes2[0].set_ylabel("Time (sec)")
+        axes2[0].grid(alpha=0.3)
+        axes2[0].legend()
+
+        # --------------------------------
+        # (2) Total accumulated time
+        # --------------------------------
+        total_times = pivot.sum()
+
+        axes2[1].bar(total_times.index, total_times.values)
+
+        axes2[1].set_title("Total Time Spent per Substep")
+        axes2[1].set_ylabel("Total Time (sec)")
+        axes2[1].grid(axis="y", alpha=0.3)
+
+        plt.tight_layout()
+
+        substep_output = Path(self.output_path) / f"substep_durations_{self.logging_timestamp}.png"
+        plt.savefig(substep_output, dpi=150, bbox_inches="tight")
+        plt.close()
+
+        logger.info(f"Saved substep plots to {substep_output}")
 
 
     def log_step(self) -> None:
