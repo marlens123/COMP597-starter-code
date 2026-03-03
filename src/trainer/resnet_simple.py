@@ -21,6 +21,8 @@ class ResNetSimpleTrainer(SimpleTrainer):
                  conf: Optional[config.Config] = None):
         super().__init__(loader=loader, model=model, optimizer=optimizer, lr_scheduler=lr_scheduler, device=device, stats=stats, conf=conf)
 
+        self.criterion = nn.CrossEntropyLoss().to(self.model.device)
+
     @override
     def process_batch(self, i : int, batch : Any) -> Any:
         if isinstance(batch, (list, tuple)):
@@ -33,11 +35,10 @@ class ResNetSimpleTrainer(SimpleTrainer):
         """
         Defines loss function and makes forward pass applicable to tuple/list inputs.
         """
-        self.optimizer.zero_grad() #Zero the gradients
-        criterion = nn.CrossEntropyLoss().to(self.model.device)
+        self.optimizer.zero_grad() # Zero the gradients
         input, target = batch
         outputs = self.model(input, **model_kwargs)
-        return criterion(outputs, target)
+        return self.criterion(outputs, target)
     
     @override
     def train(self, model_kwargs : Optional[Dict[str, Any]]) -> None:
@@ -87,7 +88,6 @@ class ResNetSimpleTrainer(SimpleTrainer):
 
             if descr is not None:
                 progress_bar.clear()
-                print(descr)
             progress_bar.clear()
             progress_bar.update(1)
 
