@@ -91,6 +91,8 @@ class BasicResourcesStats(base.TrainerStats):
         self._generate_timeline_plots()
         self._generate_substep_plot()
 
+        print("Saved stats & plots to:", self.output_path)
+
     def start_step(self, batch_size: int = None) -> None:
         if batch_size is not None:
             self.batch_size = batch_size
@@ -245,7 +247,7 @@ class BasicResourcesStats(base.TrainerStats):
         axes[1].grid(alpha=0.3)
 
         # GPU Memory
-        axes[2].plot(df["t"], df["gpu_mem_mb"])
+        axes[2].plot(df["t"], df["gpu_mem_used_mb"])
         axes[2].set_ylabel("GPU Mem (MB)")
         axes[2].grid(alpha=0.3)
 
