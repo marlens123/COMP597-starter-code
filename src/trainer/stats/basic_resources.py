@@ -29,12 +29,14 @@ class BasicResourcesStats(base.TrainerStats):
     def __init__(self, device: torch.device, output_path: str, csv_name: str ="basic_resources_stats") -> None:
         super().__init__()
 
-        self.process = psutil.Process(os.getpid())   
+        self.process = psutil.Process(os.getpid())  
+
+        self.device = device 
 
         if torch.cuda.is_available():
             pynvml.nvmlInit()
             self.gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(
-                device.index if device.index is not None else torch.cuda.current_device()
+                self.device.index if self.device.index is not None else torch.cuda.current_device()
             )
         else:
             self.gpu_handle = None
@@ -64,7 +66,7 @@ class BasicResourcesStats(base.TrainerStats):
 
     def _cuda_sync(self):
         if torch.cuda.is_available():
-            torch.cuda.synchronize()
+            torch.cuda.synchronize(self.device)
 
     def start_train(self) -> None:
         """Initialize CSV logging."""
