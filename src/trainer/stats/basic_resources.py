@@ -86,7 +86,8 @@ class BasicResourcesStats(base.TrainerStats):
         total_time = time.time() - self.training_time_start
 
         print(f"End-to-end training time with logging: {total_time}.")
-        self._generate_plots()
+        self._generate_timeline_plots()
+        self._generate_substep_plot()
 
     def start_step(self, batch_size: int = None) -> None:
         if batch_size is not None:
@@ -224,6 +225,9 @@ class BasicResourcesStats(base.TrainerStats):
         # Convert timestamp to relative seconds
         df["t"] = df["step_end_timestamp"] - df["step_end_timestamp"].iloc[0]
 
+        # only plot the first 5 minutes
+        df = df[df["t"] <= 300]
+
         fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
 
         # GPU Util
@@ -251,6 +255,44 @@ class BasicResourcesStats(base.TrainerStats):
         plt.close()
 
         logger.info(f"Saved timeline plot to {output}")
+
+    def _generate_substep_plot(self):
+        import pandas as pd
+        import matplotlib.pyplot as plt
+        import numpy as np
+        from pathlib import Path
+
+        sub_df = pd.read_csv(self.substeps_csv_path)
+
+        if sub_df.empty:
+            logger.warning("No substep data available.")
+            return
+
+        # Only phase timing
+        phase_df = sub_df[sub_df["substep"].isin(["forward", "backward", "optimizer"])]
+
+        grouped = phase_df.groupby("substep")["time_sec"]
+
+        means = grouped.mean()
+        stds = grouped.std()
+
+        phases = means.index
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+
+        ax.bar(phases, means, yerr=stds, capsize=5)
+
+        ax.set_ylabel("Time per Phase (sec)")
+        ax.set_title("Mean Phase Time ± Std Dev")
+        ax.grid(axis="y", alpha=0.3)
+
+        plt.tight_layout()
+
+        output = Path(self.output_path) / f"phase_bars_{self.logging_timestamp}.png"
+        plt.savefig(output, dpi=150)
+        plt.close()
+
+        logger.info(f"Saved phase bar plot to {output}")
 
     def _generate_plots(self):
         import pandas as pd
