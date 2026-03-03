@@ -427,3 +427,7 @@ class BasicResourcesStats(base.TrainerStats):
     def log_stats(self) -> None:
         """Logs information about the data accumulated so far."""
         pass
+
+    def log_step(self) -> None:
+        """Logs information about the data accumulated so far."""
+        pass
