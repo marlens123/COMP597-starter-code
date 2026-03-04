@@ -237,13 +237,15 @@ class BasicResourcesStats(base.TrainerStats):
             2, 3,
             figsize=(18, 8),
         )
-        fig.suptitle('ResNet152, 5 Minutes, Batch Size 4', fontsize=16, fontweight='bold')
+        fig.suptitle('ResNet152 Timelines, 5 Minutes, Batch Size 4', fontsize=16, fontweight='bold')
 
         for ax in axes.flat:
             ax.tick_params(labelbottom=True)
 
         # GPU Util
-        y = pd.to_numeric(df["gpu_util_percent"], errors="coerce").fillna(0)
+        y = pd.to_numeric(df["gpu_util_percent"], errors="coerce")
+
+        avg = y.mean()  # automatically ignores NaNs
 
         axes[0,0].plot(df["t"], y, linewidth=1.5)
         axes[0,0].set_ylabel("GPU Util (%)")
