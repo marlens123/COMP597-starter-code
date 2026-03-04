@@ -232,26 +232,105 @@ class BasicResourcesStats(base.TrainerStats):
         # only plot the first 5 minutes
         df = df[df["t"] <= 300]
 
-        fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
+        fig, axes = plt.subplots(
+            2, 3,
+            figsize=(18, 8),
+            sharex=True
+        )
+        fig.suptitle('ResNet152 Basic Training Metrics', fontsize=16, fontweight='bold')
+
+        for ax in axes.flat:
+            ax.tick_params(labelbottom=True)
 
         # GPU Util
-        axes[0].plot(df["t"], df["gpu_util_percent"])
-        axes[0].set_ylabel("GPU Util (%)")
-        axes[0].set_ylim(0, 100)
-        axes[0].grid(alpha=0.3)
+        y = pd.to_numeric(df["gpu_util_percent"], errors="coerce").fillna(0)
+
+        axes[0,0].plot(df["t"], y, linewidth=1.5)
+        axes[0,0].set_ylabel("GPU Util (%)")
+        axes[0,0].grid(alpha=0.3)
+
+        avg = np.mean(y)
+        ax.set_title(f"GPU Utilization (Average: {avg:.2f})")
+        ax.set_xlabel("Time (seconds)")
+
+        axes[0,0].set_ylim(bottom=0)
+        if df["gpu_util_percent"].max() > 0:
+            axes[0,0].set_ylim(top=df["gpu_util_percent"].max() * 1.1)
 
         # CPU Util
-        axes[1].plot(df["t"], df["cpu_util_percent"])
-        axes[1].set_ylabel("CPU Util (%)")
-        axes[1].set_ylim(0, 100)
-        axes[1].grid(alpha=0.3)
+        y = pd.to_numeric(df["cpu_util_percent"], errors="coerce").fillna(0)
+
+        axes[0,1].plot(df["t"], y, linewidth=1.5)
+        axes[0,1].set_ylabel("CPU Util (%)")
+        axes[0,1].grid(alpha=0.3)
+
+        avg = np.mean(y)
+        ax.set_title(f"CPU Utilization (Average: {avg:.2f})")
+        ax.set_xlabel("Time (seconds)")
+
+        axes[0,1].set_ylim(bottom=0)
+        if df["cpu_util_percent"].max() > 0:
+            axes[0,1].set_ylim(top=df["cpu_util_percent"].max() * 1.1)
 
         # GPU Memory
-        axes[2].plot(df["t"], df["gpu_mem_used_mb"])
-        axes[2].set_ylabel("GPU Mem (MB)")
-        axes[2].grid(alpha=0.3)
+        y = pd.to_numeric(df["gpu_mem_used_mb"], errors="coerce").fillna(0)
 
-        axes[-1].set_xlabel("Time (seconds)")
+        axes[0,2].plot(df["t"], y, linewidth=1.5)
+        axes[0,2].set_ylabel("GPU Mem (MB)")
+        axes[0,2].grid(alpha=0.3)
+
+        avg = np.mean(y)
+        ax.set_title(f"GPU Memory (Average: {avg:.2f})")
+        ax.set_xlabel("Time (seconds)")
+
+        axes[0,2].set_ylim(bottom=0)
+        if df["gpu_mem_used_mb"].max() > 0:
+            axes[0,2].set_ylim(top=df["gpu_mem_used_mb"].max() * 1.1)
+
+        # RAM
+        y = pd.to_numeric(df["ram_mb"], errors="coerce").fillna(0)
+
+        axes[1,0].plot(df["t"], y, linewidth=1.5)
+        axes[1,0].set_ylabel("RAM (MB)")
+        axes[1,0].grid(alpha=0.3)
+
+        avg = np.mean(y)
+        ax.set_title(f"RAM Usage (Average: {avg:.2f})")
+        ax.set_xlabel("Time (seconds)")
+
+        axes[1,0].set_ylim(bottom=0)
+        if df["ram_mb"].max() > 0:
+            axes[1,0].set_ylim(top=df["ram_mb"].max() * 1.1)
+
+        # Throughput
+        y = pd.to_numeric(df["throughput_samples_per_sec"], errors="coerce").fillna(0)
+
+        axes[1,1].plot(df["t"], y, linewidth=1.5)
+        axes[1,1].set_ylabel("Samples / sec")
+        axes[1,1].grid(alpha=0.3)
+
+        avg = np.mean(y)
+        ax.set_title(f"Throughput (Average: {avg:.2f})")
+        ax.set_xlabel("Time (seconds)")
+
+        axes[1,1].set_ylim(bottom=0)
+        if df["throughput_samples_per_sec"].max() > 0:
+            axes[1,1].set_ylim(top=df["throughput_samples_per_sec"].max() * 1.1)
+
+        # Time per step
+        y = pd.to_numeric(df["time_sec"], errors="coerce").fillna(0)
+
+        axes[1,2].plot(df["step"], y, linewidth=1.5)
+        axes[1,2].set_ylabel("Time (sec)")
+        axes[1,2].grid(alpha=0.3)
+
+        avg = np.mean(y)
+        ax.set_title(f"Step Time")
+        ax.set_xlabel("Step")
+
+        axes[1,2].set_ylim(bottom=0)
+        if df["time_sec"].max() > 0:
+            axes[1,2].set_ylim(top=df["time_sec"].max() * 1.1)
 
         plt.tight_layout()
         output = Path(self.output_path) / f"timeline_{self.logging_timestamp}.png"
@@ -283,6 +362,7 @@ class BasicResourcesStats(base.TrainerStats):
         phases = means.index
 
         fig, ax = plt.subplots(figsize=(8, 6))
+        fig.suptitle('ResNet152 Phase Metrics', fontsize=16, fontweight='bold')
 
         ax.bar(phases, means, yerr=stds, capsize=5)
 
