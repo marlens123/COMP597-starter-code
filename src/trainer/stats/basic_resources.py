@@ -319,13 +319,14 @@ class BasicResourcesStats(base.TrainerStats):
 
         # Time per step
         y = pd.to_numeric(df["time_sec"], errors="coerce").fillna(0)
+        final_y = y.iloc[-1]
 
         axes[1,2].plot(df["step"], y, linewidth=1.5)
-        axes[1,2].set_ylabel(f"Time (sec) (Final: {y.iloc[-1]:.2f})")
+        axes[1,2].set_ylabel(f"Time (sec)")
         axes[1,2].grid(alpha=0.3)
 
         avg = np.mean(y)
-        axes[1,2].set_title(f"Step Time")
+        axes[1,2].set_title(f"Step Time (Final: {final_y:.2f})")
         axes[1,2].set_xlabel("Step")
 
         axes[1,2].set_ylim(bottom=0)
@@ -337,7 +338,7 @@ class BasicResourcesStats(base.TrainerStats):
         plt.savefig(output, dpi=150)
         plt.close()
 
-        logger.info(f"Saved timeline plot to {output}")
+        logger.info(f"Saved timeline plot to {output}.")
 
     def _generate_substep_plot(self):
         import pandas as pd
