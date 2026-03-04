@@ -235,7 +235,6 @@ class BasicResourcesStats(base.TrainerStats):
         fig, axes = plt.subplots(
             2, 3,
             figsize=(18, 8),
-            sharex=True
         )
         fig.suptitle('ResNet152 Basic Training Metrics', fontsize=16, fontweight='bold')
 
@@ -250,8 +249,8 @@ class BasicResourcesStats(base.TrainerStats):
         axes[0,0].grid(alpha=0.3)
 
         avg = np.mean(y)
-        ax.set_title(f"GPU Utilization (Average: {avg:.2f})")
-        ax.set_xlabel("Time (seconds)")
+        axes[0,0].set_title(f"GPU Utilization (Average: {avg:.2f})")
+        axes[0,0].set_xlabel("Time (seconds)")
 
         axes[0,0].set_ylim(bottom=0)
         if df["gpu_util_percent"].max() > 0:
@@ -265,8 +264,8 @@ class BasicResourcesStats(base.TrainerStats):
         axes[0,1].grid(alpha=0.3)
 
         avg = np.mean(y)
-        ax.set_title(f"CPU Utilization (Average: {avg:.2f})")
-        ax.set_xlabel("Time (seconds)")
+        axes[0,1].set_title(f"CPU Utilization (Average: {avg:.2f})")
+        axes[0,1].set_xlabel("Time (seconds)")
 
         axes[0,1].set_ylim(bottom=0)
         if df["cpu_util_percent"].max() > 0:
@@ -280,8 +279,8 @@ class BasicResourcesStats(base.TrainerStats):
         axes[0,2].grid(alpha=0.3)
 
         avg = np.mean(y)
-        ax.set_title(f"GPU Memory (Average: {avg:.2f})")
-        ax.set_xlabel("Time (seconds)")
+        axes[0,2].set_title(f"GPU Memory (Average: {avg:.2f})")
+        axes[0,2].set_xlabel("Time (seconds)")
 
         axes[0,2].set_ylim(bottom=0)
         if df["gpu_mem_used_mb"].max() > 0:
@@ -295,8 +294,8 @@ class BasicResourcesStats(base.TrainerStats):
         axes[1,0].grid(alpha=0.3)
 
         avg = np.mean(y)
-        ax.set_title(f"RAM Usage (Average: {avg:.2f})")
-        ax.set_xlabel("Time (seconds)")
+        axes[1,0].set_title(f"RAM Usage (Average: {avg:.2f})")
+        axes[1,0].set_xlabel("Time (seconds)")
 
         axes[1,0].set_ylim(bottom=0)
         if df["ram_mb"].max() > 0:
@@ -310,8 +309,8 @@ class BasicResourcesStats(base.TrainerStats):
         axes[1,1].grid(alpha=0.3)
 
         avg = np.mean(y)
-        ax.set_title(f"Throughput (Average: {avg:.2f})")
-        ax.set_xlabel("Time (seconds)")
+        axes[1,1].set_title(f"Throughput (Average: {avg:.2f})")
+        axes[1,1].set_xlabel("Time (seconds)")
 
         axes[1,1].set_ylim(bottom=0)
         if df["throughput_samples_per_sec"].max() > 0:
@@ -325,8 +324,8 @@ class BasicResourcesStats(base.TrainerStats):
         axes[1,2].grid(alpha=0.3)
 
         avg = np.mean(y)
-        ax.set_title(f"Step Time")
-        ax.set_xlabel("Step")
+        axes[1,2].set_title(f"Step Time")
+        axes[1,2].set_xlabel("Step")
 
         axes[1,2].set_ylim(bottom=0)
         if df["time_sec"].max() > 0:
