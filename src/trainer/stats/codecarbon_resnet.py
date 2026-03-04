@@ -13,6 +13,7 @@ import pandas as pd
 import src.config as config
 import src.trainer.stats.base as base
 import torch
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -158,14 +159,16 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         self.device = device
         # tracking the run number to distinguish between different parameter settings
         self.run_num = run_num
-        run_number = f"run_{run_num}_"
+        self.run_number = f"run_{run_num}_"
         # GPU ranks - wrap in torch.device
-        gpu_id = self.device.index
+        self.gpu_id = self.device.index
         # log the losses
         self.losses = []
         self.project_name = project_name
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
+
+        self.logging_timestamp = time.time()
         
         # Normal-mode tracker to track the entire training loop
         self.total_training_tracker = OfflineEmissionsTracker(
@@ -173,10 +176,10 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             country_iso_code = "CAN",
             region = "quebec",
             save_to_file = False, 
-            output_handlers = [SimpleFileOutput(output_file_name = f"{run_number}cc_full_rank_{gpu_id}.csv", output_dir=output_dir)],
+            output_handlers = [SimpleFileOutput(output_file_name = f"{self.run_number}cc_full_rank_{self.gpu_id}.csv", output_dir=output_dir)],
             allow_multiple_runs = True,
             log_level = "warning",
-            gpu_ids = [gpu_id],
+            gpu_ids = [self.gpu_id],
         )
 
         # Task-mode tracker to track steps (iterations) within the training loop
@@ -186,10 +189,10 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             country_iso_code = "CAN", 
             region = "quebec", 
             save_to_file = False, 
-            output_handlers = [SimpleFileOutput(output_file_name = f"{run_number}cc_step_rank_{gpu_id}.csv", output_dir=output_dir)],
+            output_handlers = [SimpleFileOutput(output_file_name = f"{self.run_number}cc_step_rank_{self.gpu_id}.csv", output_dir=output_dir)],
             allow_multiple_runs = True, 
             api_call_interval = -1, 
-            gpu_ids = [gpu_id],
+            gpu_ids = [self.gpu_id],
             log_level = "warning",
         )
         
@@ -200,10 +203,10 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             country_iso_code = "CAN", 
             region = "quebec", 
             save_to_file = False, 
-            output_handlers = [SimpleFileOutput(output_file_name = f"{run_number}cc_substep_rank_{gpu_id}.csv", output_dir=output_dir)],
+            output_handlers = [SimpleFileOutput(output_file_name = f"{self.run_number}cc_substep_rank_{self.gpu_id}.csv", output_dir=output_dir)],
             allow_multiple_runs = True, 
             api_call_interval = -1, 
-            gpu_ids = [gpu_id],
+            gpu_ids = [self.gpu_id],
             log_level = "warning",
         )
 
@@ -221,6 +224,9 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         
         self.training_step_tracker.stop()
         self.training_substep_tracker.stop()
+
+        self._generate_timeline_plots()
+        self._generate_timeline_plots_avg()
 
     def start_step(self, batch_size: int = None) -> None:
         self.iteration += 1
@@ -292,3 +298,146 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             }
         )
 
+    def _generate_timeline_plots(self):
+        import pandas as pd
+        import matplotlib.pyplot as plt
+        from pathlib import Path
+        import numpy as np
+
+        df = pd.read_csv(self.output_dir / f"{self.run_number}cc_step_rank_{self.gpu_id}.csv")
+
+        if df.empty:
+            logger.warning("No timeline data available.")
+            return
+
+        # Convert timestamp to relative seconds
+        df["t"] = df["timestamp"] - df["timestamp"].iloc[0]
+
+        # only plot the first 5 minutes
+        df = df[df["t"] <= 300]
+
+        fig, axes = plt.subplots(
+            2, 3,
+            figsize=(18, 8),
+        )
+        fig.suptitle('ResNet152 CodeCarbon, 5 Minutes, Batch Size 4', fontsize=16, fontweight='bold')
+
+        for ax in axes.flat:
+            ax.tick_params(labelbottom=True)
+
+        # GPU Energy
+        y = pd.to_numeric(df["gpu_energy"], errors="coerce").fillna(0)
+        y_for_mean = pd.to_numeric(df["gpu_energy"], errors="coerce")
+
+        axes[0,0].plot(df["t"], y, linewidth=1.5)
+        axes[0,0].set_ylabel("GPU Energy (mWh)")
+        axes[0,0].grid(alpha=0.3)
+
+        avg = np.mean(y_for_mean)
+        axes[0,0].set_title(f"GPU Energy (Average: {avg:.2f})")
+        axes[0,0].set_xlabel("Time (seconds)")
+
+        axes[0,0].set_ylim(bottom=0)
+        if df["gpu_energy"].max() > 0:
+            axes[0,0].set_ylim(top=df["gpu_energy"].max() * 1.1)
+
+        # Emissions
+        y = pd.to_numeric(df["emissions"], errors="coerce").fillna(0)
+        y_for_mean = pd.to_numeric(df["gpu_energy"], errors="coerce")
+
+        axes[0,1].plot(df["t"], y, linewidth=1.5)
+        axes[0,1].set_ylabel("Emissions (g CO2eq)")
+        axes[0,1].grid(alpha=0.3)
+
+        avg = np.mean(y_for_mean)
+        axes[0,1].set_title(f"Emissions (Average: {avg:.2f})")
+        axes[0,1].set_xlabel("Time (seconds)")
+
+        axes[0,1].set_ylim(bottom=0)
+        if df["emissions"].max() > 0:
+            axes[0,1].set_ylim(top=df["emissions"].max() * 1.1)
+
+        plt.tight_layout()
+        output = Path(self.output_path) / f"timeline_cc_{self.logging_timestamp}.png"
+        plt.savefig(output, dpi=150)
+        plt.close()
+
+        logger.info(f"Saved timeline plot to {output}")
+
+
+    def _generate_timeline_plots_avg(self):
+        import pandas as pd
+        import matplotlib.pyplot as plt
+        from pathlib import Path
+        import numpy as np
+
+        df = pd.read_csv(self.output_dir / f"{self.run_number}cc_step_rank_{self.gpu_id}.csv")
+
+        if df.empty:
+            logger.warning("No timeline data available.")
+            return
+
+        # Convert timestamp to relative seconds
+        df["t"] = df["timestamp"] - df["timestamp"].iloc[0]
+
+        # Only keep first 5 minutes
+        df = df[df["t"] <= 300]
+
+        if df.empty:
+            logger.warning("No data in selected time window.")
+            return
+
+        df["gpu_energy"] = pd.to_numeric(df["gpu_energy"], errors="coerce")
+        df["emissions"] = pd.to_numeric(df["emissions"], errors="coerce")
+
+        # --- Aggregate every 15 rows ---
+        block_size = 15
+        df["block"] = np.arange(len(df)) // block_size
+
+        agg_df = (
+            df.groupby("block")
+            .agg({
+                "t": "mean",                     # mean time in block
+                "gpu_energy": "mean",
+                "emissions": "mean"       # mean GPU util (ignores NaN)
+            })
+            .reset_index(drop=True)
+        )
+
+        fig, axes = plt.subplots(
+            2, 3,
+            figsize=(18, 8),
+        )
+        fig.suptitle('ResNet152 CodeCarbon, 5 Minutes, Batch Size 4', fontsize=16, fontweight='bold')
+
+        axes[0,0].plot(agg_df["t"], agg_df["gpu_energy"], linewidth=1.5)
+        axes[0,0].set_ylabel("GPU Energy (mWh)")
+        axes[0,0].set_xlabel("Time (seconds)")
+        axes[0,0].grid(alpha=0.3)
+
+        avg = agg_df["gpu_energy"].mean()
+        axes[0,0].set_title(f"GPU Energy (15-step avg, Overall Avg: {avg:.2f}%)")
+
+        axes[0,0].set_ylim(bottom=0)
+        if df["gpu_energy"].max() > 0:
+            axes[0,1].set_ylim(top=df["gpu_energy"].max() * 1.1)
+
+        axes[0,1].plot(agg_df["t"], agg_df["emissions"], linewidth=1.5)
+        axes[0,1].set_ylabel("Emissions (g CO2eq)")
+        axes[0,1].set_xlabel("Time (seconds)")
+        axes[0,1].grid(alpha=0.3)
+
+        avg = agg_df["emissions"].mean()
+        axes[0,1].set_title(f"Emissions (15-step avg, Overall Avg: {avg:.2f}%)")
+
+        axes[0,1].set_ylim(bottom=0)
+        if df["emissions"].max() > 0:
+            axes[0,1].set_ylim(top=df["emissions"].max() * 1.1)
+
+        plt.tight_layout()
+
+        output = Path(self.output_path) / f"timeline_cc_avg_{self.logging_timestamp}.png"
+        plt.savefig(output, dpi=150)
+        plt.close()
+
+        logger.info(f"Saved timeline plot to {output}")
