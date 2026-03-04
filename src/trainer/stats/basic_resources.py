@@ -201,6 +201,7 @@ class BasicResourcesStats(base.TrainerStats):
 
         row = {
             "step": self.step_idx,
+            "substep_end_timestamp": time.time(),
             "substep": name,
             "time_sec": duration,
             "gpu_mem_used_mb": gpu_mem,
@@ -236,7 +237,7 @@ class BasicResourcesStats(base.TrainerStats):
             2, 3,
             figsize=(18, 8),
         )
-        fig.suptitle('ResNet152 Basic Training Metrics', fontsize=16, fontweight='bold')
+        fig.suptitle('ResNet152, 5 Minutes, Batch Size 4', fontsize=16, fontweight='bold')
 
         for ax in axes.flat:
             ax.tick_params(labelbottom=True)
@@ -320,7 +321,7 @@ class BasicResourcesStats(base.TrainerStats):
         y = pd.to_numeric(df["time_sec"], errors="coerce").fillna(0)
 
         axes[1,2].plot(df["step"], y, linewidth=1.5)
-        axes[1,2].set_ylabel("Time (sec)")
+        axes[1,2].set_ylabel(f"Time (sec) (Final: {y[-1]})")
         axes[1,2].grid(alpha=0.3)
 
         avg = np.mean(y)
@@ -344,7 +345,9 @@ class BasicResourcesStats(base.TrainerStats):
         import numpy as np
         from pathlib import Path
 
+        sub_df["t"] = sub_df["substep_end_timestamp"] - sub_df["substep_end_timestamp"].iloc[0]
         sub_df = pd.read_csv(self.substeps_csv_path)
+        sub_df = sub_df[sub_df["t"] <= 300]
 
         if sub_df.empty:
             logger.warning("No substep data available.")
@@ -364,6 +367,16 @@ class BasicResourcesStats(base.TrainerStats):
         fig.suptitle('ResNet152 Phase Metrics', fontsize=16, fontweight='bold')
 
         ax.bar(phases, means, yerr=stds, capsize=5)
+
+        for i, phase in enumerate(phases):
+            ax.text(
+                i,
+                means[i],
+                f"{means[i]:.3f}±{stds[i]:.3f}",
+                ha="center",
+                va="bottom",
+                fontsize=10
+            )
 
         ax.set_ylabel("Time per Phase (sec)")
         ax.set_title("Mean Phase Time ± Std Dev")
