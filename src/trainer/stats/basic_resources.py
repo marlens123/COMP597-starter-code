@@ -321,7 +321,7 @@ class BasicResourcesStats(base.TrainerStats):
         y = pd.to_numeric(df["time_sec"], errors="coerce").fillna(0)
 
         axes[1,2].plot(df["step"], y, linewidth=1.5)
-        axes[1,2].set_ylabel(f"Time (sec) (Final: {y[-1]})")
+        axes[1,2].set_ylabel(f"Time (sec) (Final: {y.iloc[-1]})")
         axes[1,2].grid(alpha=0.3)
 
         avg = np.mean(y)
