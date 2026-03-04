@@ -243,9 +243,10 @@ class BasicResourcesStats(base.TrainerStats):
             ax.tick_params(labelbottom=True)
 
         # GPU Util
-        y = pd.to_numeric(df["gpu_util_percent"], errors="coerce")
+        y_for_mean = pd.to_numeric(df["gpu_util_percent"], errors="coerce")
+        y = pd.to_numeric(df["gpu_util_percent"], errors="coerce").fillna(0)
 
-        avg = y.mean()  # automatically ignores NaNs
+        avg = y_for_mean.mean()
 
         axes[0,0].plot(df["t"], y, linewidth=1.5)
         axes[0,0].set_ylabel("GPU Util (%)")
