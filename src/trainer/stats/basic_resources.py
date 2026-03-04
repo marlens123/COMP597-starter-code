@@ -345,8 +345,8 @@ class BasicResourcesStats(base.TrainerStats):
         import numpy as np
         from pathlib import Path
 
-        sub_df["t"] = sub_df["substep_end_timestamp"] - sub_df["substep_end_timestamp"].iloc[0]
         sub_df = pd.read_csv(self.substeps_csv_path)
+        sub_df["t"] = sub_df["substep_end_timestamp"] - sub_df["substep_end_timestamp"].iloc[0]
         sub_df = sub_df[sub_df["t"] <= 300]
 
         if sub_df.empty:
