@@ -244,15 +244,14 @@ class BasicResourcesStats(base.TrainerStats):
 
         # GPU Util
         y_for_mean = pd.to_numeric(df["gpu_util_percent"], errors="coerce")
-        y = pd.to_numeric(df["gpu_util_percent"], errors="coerce").fillna(0)
 
-        avg = y_for_mean.mean()
+        y = pd.to_numeric(df["gpu_util_percent"], errors="coerce").fillna(0)
 
         axes[0,0].plot(df["t"], y, linewidth=1.5)
         axes[0,0].set_ylabel("GPU Util (%)")
         axes[0,0].grid(alpha=0.3)
 
-        avg = np.mean(y)
+        avg = y_for_mean.mean()
         axes[0,0].set_title(f"GPU Utilization (Average: {avg:.2f})")
         axes[0,0].set_xlabel("Time (seconds)")
 
