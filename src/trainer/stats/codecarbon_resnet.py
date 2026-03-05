@@ -310,8 +310,11 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             logger.warning("No timeline data available.")
             return
 
-        # Convert timestamp to relative seconds
-        df["t"] = df["timestamp"] - df["timestamp"].iloc[0]
+        # Convert to datetime
+        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+
+        # Compute relative time in seconds
+        df["t"] = (df["timestamp"] - df["timestamp"].iloc[0]).dt.total_seconds()
 
         # only plot the first 5 minutes
         df = df[df["t"] <= 300]
@@ -377,8 +380,11 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             logger.warning("No timeline data available.")
             return
 
-        # Convert timestamp to relative seconds
-        df["t"] = df["timestamp"] - df["timestamp"].iloc[0]
+        # Convert to datetime
+        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+
+        # Compute relative time in seconds
+        df["t"] = (df["timestamp"] - df["timestamp"].iloc[0]).dt.total_seconds()
 
         # Only keep first 5 minutes
         df = df[df["t"] <= 300]
