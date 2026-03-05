@@ -343,7 +343,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
 
         # Emissions
         y = pd.to_numeric(df["emissions"], errors="coerce").fillna(0)
-        y_for_mean = pd.to_numeric(df["gpu_energy"], errors="coerce")
+        y_for_mean = pd.to_numeric(df["emissions"], errors="coerce")
 
         axes[0,1].plot(df["t"], y, linewidth=1.5)
         axes[0,1].set_ylabel("Emissions (g CO2eq)")
@@ -358,7 +358,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             axes[0,1].set_ylim(top=df["emissions"].max() * 1.1)
 
         plt.tight_layout()
-        output = Path(self.output_path) / f"timeline_cc_{self.logging_timestamp}.png"
+        output = Path(self.output_dir) / f"timeline_cc_{self.logging_timestamp}.png"
         plt.savefig(output, dpi=150)
         plt.close()
 
@@ -436,7 +436,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
 
         plt.tight_layout()
 
-        output = Path(self.output_path) / f"timeline_cc_avg_{self.logging_timestamp}.png"
+        output = Path(self.output_dir) / f"timeline_cc_avg_{self.logging_timestamp}.png"
         plt.savefig(output, dpi=150)
         plt.close()
 
