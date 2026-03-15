@@ -308,18 +308,18 @@ class BasicResourcesStats(base.TrainerStats):
 
         # Time per step
         y = pd.to_numeric(df["time_sec"], errors="coerce").fillna(0)
-        final_y = y.iloc[-1]
 
         # for timestep logging, remove the first timestep since it will be off
         x = df["step"][1:]
         y = y[1:]
+        avg = y.mean()
 
         axes[1,2].plot(x, y, linewidth=1.5)
         axes[1,2].set_ylabel(f"Time (sec)")
         axes[1,2].grid(alpha=0.3)
 
         avg = np.mean(y)
-        axes[1,2].set_title(f"Step Time (Final: {final_y:.2f})")
+        axes[1,2].set_title(f"Step Time (Average: {avg:.2f})")
         axes[1,2].set_xlabel("Step")
 
         axes[1,2].set_ylim(bottom=0)
