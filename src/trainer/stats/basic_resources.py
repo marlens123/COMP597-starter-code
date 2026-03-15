@@ -43,10 +43,6 @@ class BasicResourcesStats(base.TrainerStats):
 
         self.nvml_log_interval = 15
 
-        self._nvml_accumulator = {
-            "gpu_util": [],
-        }
-
         self.output_path = output_path
         self.logging_timestamp = int(time.time())
 
@@ -134,15 +130,8 @@ class BasicResourcesStats(base.TrainerStats):
             "ram_mb": ram_mem,
             "gpu_util_percent": gpu_util,
             "gpu_mem_used_mb": gpu_mem,
+            "gpu_util_percent": gpu_util
         }
-
-        self._nvml_accumulator["gpu_util"].append(gpu_util)
-
-        if self.step_idx % self.nvml_log_interval == 0:
-            avg_gpu_util = self._get_nvml_average()
-            row["gpu_util_percent"] = avg_gpu_util
-        else:
-            row["gpu_util_percent"] = None
 
         if self.step_writer is None:
             self.step_writer = csv.DictWriter(self.step_file, fieldnames=row.keys())
@@ -151,16 +140,6 @@ class BasicResourcesStats(base.TrainerStats):
         self.step_writer.writerow(row)
 
         self.step_idx += 1
-
-    def _get_nvml_average(self):
-        if not self._nvml_accumulator["gpu_util"]:
-            return
-
-        avg_gpu_util = sum(self._nvml_accumulator["gpu_util"]) / len(self._nvml_accumulator["gpu_util"])
-
-        # Reset accumulator
-        self._nvml_accumulator["gpu_util"].clear()
-        return avg_gpu_util
 
     # -------------------------------
     # -------------------------------
@@ -243,15 +222,23 @@ class BasicResourcesStats(base.TrainerStats):
             ax.tick_params(labelbottom=True)
 
         # GPU Util
-        y_for_mean = pd.to_numeric(df["gpu_util_percent"], errors="coerce")
+        # --- Aggregate every 15 rows ---
+        df["block"] = np.arange(len(df)) // self.nvml_log_interval
 
-        y = pd.to_numeric(df["gpu_util_percent"], errors="coerce")
-
-        axes[0,0].plot(df["t"], y, linewidth=1.5)
+        agg_df = (
+            df.groupby("block")
+            .agg({
+                "t": "mean",                     # mean time in block
+                "gpu_util_percent": "mean",      # mean GPU util (ignores NaN)     
+            })
+            .reset_index(drop=True)
+        )
+        
+        axes[0,0].plot(agg_df["t"], agg_df["gpu_util_percent"], linewidth=1.5)
         axes[0,0].set_ylabel("GPU Util (%)")
         axes[0,0].grid(alpha=0.3)
 
-        avg = y_for_mean.mean()
+        avg = agg_df["gpu_util_percent"].mean()
         axes[0,0].set_title(f"GPU Utilization (Average: {avg:.2f})")
         axes[0,0].set_xlabel("Time (seconds)")
 
@@ -324,9 +311,10 @@ class BasicResourcesStats(base.TrainerStats):
         final_y = y.iloc[-1]
 
         # for timestep logging, remove the first timestep since it will be off
+        x = df["step"][1:]
         y = y[1:]
 
-        axes[1,2].plot(df["step"], y, linewidth=1.5)
+        axes[1,2].plot(x, y, linewidth=1.5)
         axes[1,2].set_ylabel(f"Time (sec)")
         axes[1,2].grid(alpha=0.3)
 
@@ -395,124 +383,6 @@ class BasicResourcesStats(base.TrainerStats):
         plt.close()
 
         logger.info(f"Saved phase bar plot to {output}")
-
-    def _generate_plots(self):
-        import pandas as pd
-        import matplotlib.pyplot as plt
-
-        # =========================
-        # Step duration plots
-        # =========================
-        df = pd.read_csv(self.step_csv_path)
-
-        if df.empty:
-            logger.warning("No data available for plotting.")
-            return
-
-        x = df["step"]
-
-        fig, axes = plt.subplots(
-            2, 3,
-            figsize=(18, 8),
-            sharex=True
-        )
-        fig.suptitle('ResNet152 Basic Training Metrics', fontsize=16, fontweight='bold')
-
-        for ax in axes.flat:
-            ax.tick_params(labelbottom=True)
-
-        def _single_plot(ax, x, y_column, ylabel, title):
-
-            y = pd.to_numeric(df[y_column], errors="coerce").fillna(0)
-
-            ax.plot(x, y, linewidth=1.5)
-
-            avg = np.mean(y)
-
-            ax.set_ylabel(ylabel)
-            ax.set_title(f"{title} (Average: {avg:.2f})")
-            ax.grid(alpha=0.3)
-            ax.set_xlabel("Step")
-
-            ax.set_ylim(bottom=0)
-            if y.max() > 0:
-                ax.set_ylim(top=y.max() * 1.1)
-
-        # Row 1
-        _single_plot(axes[0,0], x, "time_sec", "Time (sec)", "Step Time")
-        _single_plot(axes[0,0], x, "gpu_util_percent", "GPU Util (%)", "GPU Utilization")
-        _single_plot(axes[0,1], x, "gpu_mem_used_mb", "GPU Mem (MB)", "GPU Memory")
-
-        _single_plot(axes[1,0], x, "throughput_samples_per_sec", "Samples / sec", "Throughput")
-        _single_plot(axes[1,1], x, "cpu_util_percent", "CPU Util (%)", "CPU Utilization")
-        _single_plot(axes[0,2], x, "ram_mb", "RAM (MB)", "RAM Usage")
-
-        # Remove unused subplot instead of leaving it empty
-        fig.delaxes(axes[1,2])
-
-        plt.tight_layout()
-
-        # Save figure
-        output_file = Path(self.output_path) / f"basic_training_metrics_{self.logging_timestamp}.png"
-        plt.savefig(output_file, dpi=150, bbox_inches="tight")
-        plt.close()
-
-        # =========================
-        # Substep duration plots
-        # =========================
-
-        sub_df = pd.read_csv(self.substeps_csv_path)
-
-        if sub_df.empty:
-            logger.warning("No substep data available for plotting.")
-            return
-
-        # Ensure numeric
-        sub_df["time_sec"] = pd.to_numeric(sub_df["time_sec"], errors="coerce").fillna(0)
-
-        # Pivot to get forward/backward/optimizer per step
-        pivot = sub_df.pivot_table(
-            index="step",
-            columns="substep",
-            values="time_sec",
-            aggfunc="sum"
-        ).fillna(0)
-
-        steps = pivot.index
-
-        fig2, axes2 = plt.subplots(1, 2, figsize=(16, 6))
-
-        # --------------------------------
-        # (1) Substep duration over steps
-        # --------------------------------
-        for col in pivot.columns:
-            axes2[0].plot(steps, pivot[col], label=col)
-
-        axes2[0].set_title("Substep Duration per Step")
-        axes2[0].set_xlabel("Step")
-        axes2[0].set_ylabel("Time (sec)")
-        axes2[0].grid(alpha=0.3)
-        axes2[0].legend()
-
-        # --------------------------------
-        # (2) Total accumulated time
-        # --------------------------------
-        total_times = pivot.sum()
-
-        axes2[1].bar(total_times.index, total_times.values)
-
-        axes2[1].set_title("Total Time Spent per Substep")
-        axes2[1].set_ylabel("Total Time (sec)")
-        axes2[1].grid(axis="y", alpha=0.3)
-
-        plt.tight_layout()
-
-        substep_output = Path(self.output_path) / f"substep_durations_{self.logging_timestamp}.png"
-        plt.savefig(substep_output, dpi=150, bbox_inches="tight")
-        plt.close()
-
-        logger.info(f"Saved substep plots to {substep_output}")
-
 
     def log_loss(self, loss: torch.Tensor) -> None:
         """Logs the loss of the current step by passing it to the stats."""
