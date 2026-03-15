@@ -245,7 +245,7 @@ class BasicResourcesStats(base.TrainerStats):
         # GPU Util
         y_for_mean = pd.to_numeric(df["gpu_util_percent"], errors="coerce")
 
-        y = pd.to_numeric(df["gpu_util_percent"], errors="coerce").fillna(0)
+        y = pd.to_numeric(df["gpu_util_percent"], errors="coerce")
 
         axes[0,0].plot(df["t"], y, linewidth=1.5)
         axes[0,0].set_ylabel("GPU Util (%)")
@@ -322,6 +322,9 @@ class BasicResourcesStats(base.TrainerStats):
         # Time per step
         y = pd.to_numeric(df["time_sec"], errors="coerce").fillna(0)
         final_y = y.iloc[-1]
+
+        # for timestep logging, remove the first timestep since it will be off
+        y = y[1:]
 
         axes[1,2].plot(df["step"], y, linewidth=1.5)
         axes[1,2].set_ylabel(f"Time (sec)")

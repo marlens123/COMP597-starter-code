@@ -320,8 +320,8 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         df = df[df["t"] <= 300]
 
         fig, axes = plt.subplots(
-            2, 3,
-            figsize=(18, 8),
+            1, 2,
+            figsize=(12, 6),
         )
         fig.suptitle('ResNet152 CodeCarbon, 5 Minutes, Batch Size 4', fontsize=16, fontweight='bold')
 
@@ -411,8 +411,8 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         )
 
         fig, axes = plt.subplots(
-            2, 3,
-            figsize=(18, 8),
+            1, 2,
+            figsize=(12, 6),
         )
         fig.suptitle('ResNet152 CodeCarbon, 5 Minutes, Batch Size 4', fontsize=16, fontweight='bold')
 
