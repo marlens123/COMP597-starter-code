@@ -314,7 +314,8 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
 
         # Compute relative time in seconds
-        df["t"] = (df["timestamp"] - df["timestamp"].iloc[0]).dt.total_seconds()
+        #df["t"] = (df["timestamp"] - df["timestamp"].iloc[0]).dt.total_seconds()
+        df["t"] = df["duration"].cumsum()
 
         # only plot the first 5 minutes
         df = df[df["t"] <= 300]
@@ -323,7 +324,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             1, 2,
             figsize=(12, 6),
         )
-        fig.suptitle('ResNet152 CodeCarbon, 5 Minutes, Batch Size 4', fontsize=16, fontweight='bold')
+        fig.suptitle('ResNet152 CodeCarbon, 5 Minutes', fontsize=16, fontweight='bold')
 
         for ax in axes.flat:
             ax.tick_params(labelbottom=True)
@@ -337,7 +338,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         axes[0].grid(alpha=0.3)
 
         avg = np.mean(y_for_mean)
-        axes[0].set_title(f"GPU Energy (Average: {avg:.2f})")
+        axes[0].set_title(f"GPU Energy (Average: {avg:.2e}mWh)")
         axes[0].set_xlabel("Time (seconds)")
 
         axes[0].set_ylim(bottom=0)
@@ -349,11 +350,11 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         y_for_mean = pd.to_numeric(df["emissions"], errors="coerce")
 
         axes[1].plot(df["t"], y, linewidth=1.5)
-        axes[1].set_ylabel("Emissions (g CO2eq)")
+        axes[1].set_ylabel("Emissions (kg CO2eq)")
         axes[1].grid(alpha=0.3)
 
         avg = np.mean(y_for_mean)
-        axes[1].set_title(f"Emissions (Average: {avg:.2f})")
+        axes[1].set_title(f"Emissions (Average: {avg:.2e}kg CO2eq)")
         axes[1].set_xlabel("Time (seconds)")
 
         axes[1].set_ylim(bottom=0)
@@ -384,7 +385,8 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
 
         # Compute relative time in seconds
-        df["t"] = (df["timestamp"] - df["timestamp"].iloc[0]).dt.total_seconds()
+        #df["t"] = (df["timestamp"] - df["timestamp"].iloc[0]).dt.total_seconds()
+        df["t"] = df["duration"].cumsum()
 
         # Only keep first 5 minutes
         df = df[df["t"] <= 300]
@@ -414,7 +416,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             1, 2,
             figsize=(12, 6),
         )
-        fig.suptitle('ResNet152 CodeCarbon, 5 Minutes, Batch Size 4', fontsize=16, fontweight='bold')
+        fig.suptitle('ResNet152 CodeCarbon, 5 Minutes', fontsize=16, fontweight='bold')
 
         axes[0].plot(agg_df["t"], agg_df["gpu_energy"], linewidth=1.5)
         axes[0].set_ylabel("GPU Energy (mWh)")
@@ -422,19 +424,19 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         axes[0].grid(alpha=0.3)
 
         avg = agg_df["gpu_energy"].mean()
-        axes[0].set_title(f"GPU Energy (15-step avg, Overall Avg: {avg:.2f}%)")
+        axes[0].set_title(f"GPU Energy (15-step avg, Overall Avg: {avg:.2e}mWh)")
 
         axes[0].set_ylim(bottom=0)
         if df["gpu_energy"].max() > 0:
             axes[0].set_ylim(top=df["gpu_energy"].max() * 1.1)
 
         axes[1].plot(agg_df["t"], agg_df["emissions"], linewidth=1.5)
-        axes[1].set_ylabel("Emissions (g CO2eq)")
+        axes[1].set_ylabel("Emissions (kg CO₂eq)")
         axes[1].set_xlabel("Time (seconds)")
         axes[1].grid(alpha=0.3)
 
         avg = agg_df["emissions"].mean()
-        axes[1].set_title(f"Emissions (15-step avg, Overall Avg: {avg:.2f}%)")
+        axes[1].set_title(f"Emissions (15-step avg, Overall Avg: {avg:.2e}kg CO₂eq)")
 
         axes[1].set_ylim(bottom=0)
         if df["emissions"].max() > 0:

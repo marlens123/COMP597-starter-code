@@ -216,7 +216,7 @@ class BasicResourcesStats(base.TrainerStats):
             2, 3,
             figsize=(18, 8),
         )
-        fig.suptitle('ResNet152 Timelines, 5 Minutes, Batch Size 4', fontsize=16, fontweight='bold')
+        fig.suptitle('ResNet152 Timelines, 5 Minutes', fontsize=16, fontweight='bold')
 
         for ax in axes.flat:
             ax.tick_params(labelbottom=True)
