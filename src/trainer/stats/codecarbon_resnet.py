@@ -322,8 +322,8 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         df = df[df["t"] <= 300]
 
         fig, axes = plt.subplots(
-            1, 2,
-            figsize=(12, 6),
+            2, 3,
+            figsize=(18, 8),
         )
         fig.suptitle('ResNet152 CodeCarbon, 5 Minutes', fontsize=16, fontweight='bold')
 
@@ -334,33 +334,33 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         y = pd.to_numeric(df["gpu_energy"], errors="coerce").fillna(0)
         y_for_mean = pd.to_numeric(df["gpu_energy"], errors="coerce")
 
-        axes[0].plot(df["t"], y, linewidth=1.5)
-        axes[0].set_ylabel("GPU Energy (mWh)")
-        axes[0].grid(alpha=0.3)
+        axes[0,0].plot(df["t"], y, linewidth=1.5)
+        axes[0,0].set_ylabel("GPU Energy (mWh)")
+        axes[0,0].grid(alpha=0.3)
 
         avg = np.mean(y_for_mean)
-        axes[0].set_title(f"GPU Energy (Average: {avg:.2e}mWh)")
-        axes[0].set_xlabel("Time (seconds)")
+        axes[0,0].set_title(f"GPU Energy (Average: {avg:.2e}mWh)")
+        axes[0,0].set_xlabel("Time (seconds)")
 
-        axes[0].set_ylim(bottom=0)
+        axes[0,0].set_ylim(bottom=0)
         if df["gpu_energy"].max() > 0:
-            axes[0].set_ylim(top=df["gpu_energy"].max() * 1.1)
+            axes[0,0].set_ylim(top=df["gpu_energy"].max() * 1.1)
 
         # Emissions
         y = pd.to_numeric(df["emissions"], errors="coerce").fillna(0)
         y_for_mean = pd.to_numeric(df["emissions"], errors="coerce")
 
-        axes[1].plot(df["t"], y, linewidth=1.5)
-        axes[1].set_ylabel("Emissions (kg CO2eq)")
-        axes[1].grid(alpha=0.3)
+        axes[0,1].plot(df["t"], y, linewidth=1.5)
+        axes[0,1].set_ylabel("Emissions (kg CO2eq)")
+        axes[0,1].grid(alpha=0.3)
 
         avg = np.mean(y_for_mean)
-        axes[1].set_title(f"Emissions (Average: {avg:.2e}kg CO2eq)")
-        axes[1].set_xlabel("Time (seconds)")
+        axes[0,1].set_title(f"Emissions (Average: {avg:.2e}kg CO2eq)")
+        axes[0,1].set_xlabel("Time (seconds)")
 
-        axes[1].set_ylim(bottom=0)
+        axes[0,1].set_ylim(bottom=0)
         if df["emissions"].max() > 0:
-            axes[1].set_ylim(top=df["emissions"].max() * 1.1)
+            axes[0,1].set_ylim(top=df["emissions"].max() * 1.1)
 
         plt.tight_layout()
         output = Path(self.output_dir) / f"timeline_cc_{self.logging_timestamp}.png"
@@ -414,34 +414,34 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         )
 
         fig, axes = plt.subplots(
-            1, 2,
-            figsize=(12, 6),
+            2, 3,
+            figsize=(18, 8),
         )
         fig.suptitle('ResNet152 CodeCarbon, 5 Minutes', fontsize=16, fontweight='bold')
 
-        axes[0].plot(agg_df["t"], agg_df["gpu_energy"], linewidth=1.5)
-        axes[0].set_ylabel("GPU Energy (mWh)")
-        axes[0].set_xlabel("Time (seconds)")
-        axes[0].grid(alpha=0.3)
+        axes[0,0].plot(agg_df["t"], agg_df["gpu_energy"], linewidth=1.5)
+        axes[0,0].set_ylabel("GPU Energy (mWh)")
+        axes[0,0].set_xlabel("Time (seconds)")
+        axes[0,0].grid(alpha=0.3)
 
         avg = agg_df["gpu_energy"].mean()
-        axes[0].set_title(f"GPU Energy (15-step avg, Overall Avg: {avg:.2e}mWh)")
+        axes[0,0].set_title(f"GPU Energy (15-step avg, Overall Avg: {avg:.2e}mWh)")
 
-        axes[0].set_ylim(bottom=0)
+        axes[0,0].set_ylim(bottom=0)
         if df["gpu_energy"].max() > 0:
-            axes[0].set_ylim(top=df["gpu_energy"].max() * 1.1)
+            axes[0,0].set_ylim(top=df["gpu_energy"].max() * 1.1)
 
-        axes[1].plot(agg_df["t"], agg_df["emissions"], linewidth=1.5)
-        axes[1].set_ylabel("Emissions (kg CO₂eq)")
-        axes[1].set_xlabel("Time (seconds)")
-        axes[1].grid(alpha=0.3)
+        axes[0,1].plot(agg_df["t"], agg_df["emissions"], linewidth=1.5)
+        axes[0,1].set_ylabel("Emissions (kg CO₂eq)")
+        axes[0,1].set_xlabel("Time (seconds)")
+        axes[0,1].grid(alpha=0.3)
 
         avg = agg_df["emissions"].mean()
-        axes[1].set_title(f"Emissions (15-step avg, Overall Avg: {avg:.2e}kg CO₂eq)")
+        axes[0,1].set_title(f"Emissions (15-step avg, Overall Avg: {avg:.2e}kg CO₂eq)")
 
-        axes[1].set_ylim(bottom=0)
+        axes[0,1].set_ylim(bottom=0)
         if df["emissions"].max() > 0:
-            axes[1].set_ylim(top=df["emissions"].max() * 1.1)
+            axes[0,1].set_ylim(top=df["emissions"].max() * 1.1)
 
         plt.tight_layout()
 
