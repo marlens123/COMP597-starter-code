@@ -384,11 +384,13 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             return
 
         # Convert to datetime
-        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+        #df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
 
         # Compute relative time in seconds
-        df["t"] = (df["timestamp"] - df["timestamp"].iloc[0]).dt.total_seconds()
+        #df["t"] = (df["timestamp"] - df["timestamp"].iloc[0]).dt.total_seconds()
         #df["t"] = df["duration"].cumsum()
+
+        df["t"] = df["timestamp"] - df["timestamp"].iloc[0]
 
         # Only keep first 5 minutes
         df = df[df["t"] <= 300]
