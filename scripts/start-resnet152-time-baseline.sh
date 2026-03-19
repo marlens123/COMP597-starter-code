@@ -13,4 +13,4 @@ ${SCRIPTS_DIR}/srun.sh \
     --batch_size 4 \
     --learning_rate 1e-6 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
-    --trainer_stats end_to_end_stats \
+    --trainer_stats end_to_end_time_stats \

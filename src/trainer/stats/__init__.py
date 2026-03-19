@@ -12,6 +12,7 @@ from src.trainer.stats.codecarbon import CodeCarbonStats
 from src.trainer.stats.codecarbon_resnet import CodeCarbonStatsResNet
 from src.trainer.stats.basic_resources import BasicResourcesStats
 from src.trainer.stats.end_to_end_time_tracker import EndToEndTrainerStats
+from src.trainer.stats.end_to_end_energy_tracker import EndToEndEnergyStats
 from src.trainer.stats.utils import *
 import src.auto_discovery as auto_discovery
 import src.config as config

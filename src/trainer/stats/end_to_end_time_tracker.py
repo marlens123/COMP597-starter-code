@@ -3,7 +3,7 @@ import src.trainer.stats.base as base
 import torch
 from time import time
 
-trainer_stats_name="end_to_end_stats"
+trainer_stats_name="end_to_end_time_stats"
 
 def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats:
     return EndToEndTrainerStats()
