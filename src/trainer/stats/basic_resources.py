@@ -244,7 +244,7 @@ class BasicResourcesStats(base.TrainerStats):
             df["to_500ms_block"] = np.arange(len(df)) // aggregation_interval
 
             gpu_df = (
-                df.groupby("block")
+                df.groupby("to_500ms_block")
                 .agg({
                     "t": "mean",                     # mean time in block
                     "gpu_util_percent": "mean",      # mean GPU util (ignores NaN)     
@@ -259,10 +259,10 @@ class BasicResourcesStats(base.TrainerStats):
             # --- Aggregate over 100ms ---
             aggregation_interval = batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["CPU_interval"]
             print(f"Aggregating to 100ms over {aggregation_interval} rows", flush=True)
-            df["to_500ms_block"] = np.arange(len(df)) // aggregation_interval
+            df["to_100ms_block"] = np.arange(len(df)) // aggregation_interval
 
             cpu_df = (
-                df.groupby("block")
+                df.groupby("to_100ms_block")
                 .agg({
                     "t": "mean",                     # mean time in block
                     "cpu_util_percent": "mean",      # mean CPU util (ignores NaN)     
