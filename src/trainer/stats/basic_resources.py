@@ -15,6 +15,18 @@ logger = logging.getLogger(__name__)
 
 trainer_stats_name="basic_resources_stats"
 
+# empirically defined from average training time,
+# to make sure we aggregate over 100ms (for CPU util)
+# and over 500ms (for GPU util)
+batch_size_logging_interval_lookup = {
+    "batch_size_4": {"CPU_interval": 3, "GPU_interval": 15},
+    "batch_size_8": {"CPU_interval": 2, "GPU_interval": 10},
+    "batch_size_16": {"CPU_interval": 1, "GPU_interval": 5},
+    "batch_size_32": {"CPU_interval": 1, "GPU_interval": 3},
+    "batch_size_64": {"CPU_interval": 1, "GPU_interval": 2},
+    "batch_size_128": {"CPU_interval": 1, "GPU_interval": 1},
+}
+
 def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats:
     if "device" in kwargs:
         device = kwargs["device"]
@@ -42,6 +54,7 @@ class BasicResourcesStats(base.TrainerStats):
             self.gpu_handle = None
 
         self.nvml_log_interval = 15
+        self.cpu_util_log_interval = 3
 
         self.output_path = output_path
         self.logging_timestamp = int(time.time())
@@ -216,29 +229,60 @@ class BasicResourcesStats(base.TrainerStats):
             2, 3,
             figsize=(18, 8),
         )
-        fig.suptitle('ResNet152 Timelines, 5 Minutes', fontsize=16, fontweight='bold')
+        fig.suptitle(f"ResNet152 Timelines, 5 Minutes, Batch Size {str(self.batch_size)}", fontsize=16, fontweight='bold')
 
         for ax in axes.flat:
             ax.tick_params(labelbottom=True)
 
-        # GPU Util
-        # --- Aggregate every 15 rows ---
-        df["block"] = np.arange(len(df)) // self.nvml_log_interval
+        batch_size_str = str(self.batch_size)
 
-        agg_df = (
-            df.groupby("block")
-            .agg({
-                "t": "mean",                     # mean time in block
-                "gpu_util_percent": "mean",      # mean GPU util (ignores NaN)     
-            })
-            .reset_index(drop=True)
-        )
-        
-        axes[0,0].plot(agg_df["t"], agg_df["gpu_util_percent"], linewidth=1.5)
+        if f"batch_size_{batch_size_str}" in batch_size_logging_interval_lookup and batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["GPU_interval"] > 1:
+            # GPU Util
+            # --- Aggregate over 500ms ---
+            aggregation_interval = batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["GPU_interval"]
+            print(f"Aggregating to 500ms over {aggregation_interval} rows", flush=True)
+            df["to_500ms_block"] = np.arange(len(df)) // aggregation_interval
+
+            gpu_df = (
+                df.groupby("block")
+                .agg({
+                    "t": "mean",                     # mean time in block
+                    "gpu_util_percent": "mean",      # mean GPU util (ignores NaN)     
+                })
+                .reset_index(drop=True)
+            )
+            gpu_y = gpu_df["gpu_util_percent"]
+
+
+        if f"batch_size_{batch_size_str}" in batch_size_logging_interval_lookup and batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["CPU_interval"] > 1:
+            # CPU Util
+            # --- Aggregate over 100ms ---
+            aggregation_interval = batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["CPU_interval"]
+            print(f"Aggregating to 100ms over {aggregation_interval} rows", flush=True)
+            df["to_500ms_block"] = np.arange(len(df)) // aggregation_interval
+
+            cpu_df = (
+                df.groupby("block")
+                .agg({
+                    "t": "mean",                     # mean time in block
+                    "cpu_util_percent": "mean",      # mean CPU util (ignores NaN)     
+                })
+                .reset_index(drop=True)
+            )
+            cpu_y = cpu_df["cpu_util_percent"]
+        else:
+            cpu_df = df
+            cpu_y = pd.to_numeric(cpu_df["cpu_util_percent"], errors="coerce").fillna(0)
+
+            gpu_df = df
+            gpu_y = pd.to_numeric(cpu_df["gpu_util_percent"], errors="coerce").fillna(0)
+
+        # GPU Util
+        axes[0,0].plot(gpu_df["t"], gpu_y, linewidth=1.5)
         axes[0,0].set_ylabel("GPU Util (%)")
         axes[0,0].grid(alpha=0.3)
 
-        avg = agg_df["gpu_util_percent"].mean()
+        avg = np.mean(gpu_y)
         axes[0,0].set_title(f"GPU Utilization (Average: {avg:.2f})")
         axes[0,0].set_xlabel("Time (seconds)")
 
@@ -247,13 +291,11 @@ class BasicResourcesStats(base.TrainerStats):
             axes[0,0].set_ylim(top=df["gpu_util_percent"].max() * 1.1)
 
         # CPU Util
-        y = pd.to_numeric(df["cpu_util_percent"], errors="coerce").fillna(0)
-
-        axes[0,1].plot(df["t"], y, linewidth=1.5)
+        axes[0,1].plot(cpu_df["t"], cpu_y, linewidth=1.5)
         axes[0,1].set_ylabel("CPU Util (%)")
         axes[0,1].grid(alpha=0.3)
 
-        avg = np.mean(y)
+        avg = np.mean(cpu_y)
         axes[0,1].set_title(f"CPU Utilization (Average: {avg:.2f})")
         axes[0,1].set_xlabel("Time (seconds)")
 
