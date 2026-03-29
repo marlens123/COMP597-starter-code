@@ -33,12 +33,12 @@ def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats
     else:
         logger.warning("No device provided to basic resource trainer stats. Using default PyTorch device")
         device = torch.get_default_device()
-    return BasicResourcesStats(device=device, output_path=conf.trainer_stats_configs.basic_resources.output_dir)
+    return BasicResourcesStats(device=device, output_path=conf.trainer_stats_configs.basic_resources.output_dir, batch_size=conf.batch_size)
 
 class BasicResourcesStats(base.TrainerStats):
     """Stats class that tracks GPU utilization, memory consumption, and I/O."""
 
-    def __init__(self, device: torch.device, output_path: str, csv_name: str ="basic_resources_stats") -> None:
+    def __init__(self, device: torch.device, output_path: str, csv_name: str ="basic_resources_stats", batch_size: int = None) -> None:
         super().__init__()
 
         self.process = psutil.Process(os.getpid())  
@@ -64,17 +64,17 @@ class BasicResourcesStats(base.TrainerStats):
 
         Path(self.output_path).mkdir(parents=True, exist_ok=True)
 
-        self.step_csv_path = Path(f"{self.output_path}/{csv_name}_{self.logging_timestamp}.csv")
-        self.substeps_csv_path = Path(f"{self.output_path}/{csv_name}_substeps_{self.logging_timestamp}.csv")
-
         self.step_file = None
         self.step_writer = None
         self.substep_file = None
         self.substep_writer = None
 
         self.step_idx = 0
-        self.batch_size = None
+        self.batch_size = batch_size if batch_size is not None else 1
         self.world_size = 1
+
+        self.step_csv_path = Path(f"{self.output_path}/{csv_name}_{self.logging_timestamp}_batch_size_{self.batch_size}.csv")
+        self.substeps_csv_path = Path(f"{self.output_path}/{csv_name}_substeps_{self.logging_timestamp}_batch_size_{self.batch_size}.csv")
 
     def _cuda_sync(self):
         if torch.cuda.is_available():
@@ -106,10 +106,7 @@ class BasicResourcesStats(base.TrainerStats):
 
         print("Saved stats & plots to:", self.output_path)
 
-    def start_step(self, batch_size: int = None) -> None:
-        if batch_size is not None:
-            self.batch_size = batch_size
-
+    def start_step(self) -> None:
         self._cuda_sync()
 
         self.time_before_step = time.time()
@@ -237,48 +234,39 @@ class BasicResourcesStats(base.TrainerStats):
         for ax in axes.flat:
             ax.tick_params(labelbottom=True)
 
-        batch_size_str = str(self.batch_size)
+        gpu_aggregation_interval = 0.5  # seconds
 
-        if f"batch_size_{batch_size_str}" in batch_size_logging_interval_lookup and batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["GPU_interval"] > 1:
-            # GPU Util
-            # --- Aggregate over 500ms ---
-            aggregation_interval = batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["GPU_interval"]
-            print(f"Aggregating to 500ms over {aggregation_interval} rows", flush=True)
-            df["to_500ms_block"] = np.arange(len(df)) // aggregation_interval
+        print(f"Aggregating to 500ms time bins", flush=True)
 
-            gpu_df = (
-                df.groupby("to_500ms_block")
-                .agg({
-                    "t": "mean",                     # mean time in block
-                    "gpu_util_percent": "mean",      # mean GPU util (ignores NaN)     
-                })
-                .reset_index(drop=True)
-            )
-            gpu_y = gpu_df["gpu_util_percent"]
-        else:
-            gpu_df = df
-            gpu_y = pd.to_numeric(gpu_df["gpu_util_percent"], errors="coerce").fillna(0)
+        t0 = df["t"].iloc[0]
+        df["to_500ms_block"] = ((df["t"] - t0) / gpu_aggregation_interval).astype(int)
 
+        gpu_df = (
+            df.groupby("to_500ms_block")
+            .agg({
+                "t": "first",                    # take the first timestamp in the block as the x-axis value
+                "gpu_util_percent": "mean",
+            })
+            .reset_index(drop=True)
+        )
+        gpu_y = gpu_df["gpu_util_percent"]
 
-        if f"batch_size_{batch_size_str}" in batch_size_logging_interval_lookup and batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["CPU_interval"] > 1:
-            # CPU Util
-            # --- Aggregate over 100ms ---
-            aggregation_interval = batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["CPU_interval"]
-            print(f"Aggregating to 100ms over {aggregation_interval} rows", flush=True)
-            df["to_100ms_block"] = np.arange(len(df)) // aggregation_interval
+        cpu_aggregation_interval = 0.5  # seconds
 
-            cpu_df = (
-                df.groupby("to_100ms_block")
-                .agg({
-                    "t": "mean",                     # mean time in block
-                    "cpu_util_percent": "mean",      # mean CPU util (ignores NaN)     
-                })
-                .reset_index(drop=True)
-            )
-            cpu_y = cpu_df["cpu_util_percent"]
-        else:
-            cpu_df = df
-            cpu_y = pd.to_numeric(cpu_df["cpu_util_percent"], errors="coerce").fillna(0)
+        print(f"Aggregating to 500ms time bins", flush=True)
+
+        t0 = df["t"].iloc[0]
+        df["to_500ms_block"] = ((df["t"] - t0) / cpu_aggregation_interval).astype(int)
+
+        cpu_df = (
+            df.groupby("to_500ms_block")
+            .agg({
+                "t": "first",                    # take the first timestamp in the block as the x-axis value
+                "cpu_util_percent": "mean",
+            })
+            .reset_index(drop=True)
+        )
+        cpu_y = cpu_df["cpu_util_percent"]
 
         # GPU Util
         axes[0,0].plot(gpu_df["t"], gpu_y, linewidth=1.5)

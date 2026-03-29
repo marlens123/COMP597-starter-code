@@ -73,7 +73,7 @@ class ResNetSimpleTrainer(SimpleTrainer):
 
         self.stats.start_train()
         for i, batch in enumerate(self.loader):
-            self.stats.start_step(batch_size=batch[0].size(0))
+            self.stats.start_step()
             loss, descr = self.step(i, batch, model_kwargs)
             self.stats.stop_step()
 

@@ -180,6 +180,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             allow_multiple_runs = True,
             log_level = "warning",
             gpu_ids = [self.gpu_id],
+            measure_power_secs=0.5,
         )
 
         # Task-mode tracker to track steps (iterations) within the training loop
@@ -194,6 +195,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             api_call_interval = -1, 
             gpu_ids = [self.gpu_id],
             log_level = "warning",
+            measure_power_secs=0.5,
         )
         
         # Task-mode tracker to track individual substeps (forward pass, backward pass, optimiser step)
@@ -208,6 +210,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             api_call_interval = -1, 
             gpu_ids = [self.gpu_id],
             log_level = "warning",
+            measure_power_secs=0.5,
         )
 
         # Initialise task-mode trackers
@@ -397,51 +400,30 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         df["gpu_energy"] = pd.to_numeric(df["gpu_energy"], errors="coerce")
         df["emissions"] = pd.to_numeric(df["emissions"], errors="coerce")
 
-        batch_size_str = str(self.batch_size)
-
-        if f"batch_size_{batch_size_str}" in batch_size_logging_interval_lookup and batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["GPU_interval"] > 1:
-            # GPU Util
-            # --- Aggregate over 500ms ---
-            aggregation_interval = batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["GPU_interval"]
-            print(f"Aggregating to 500ms over {aggregation_interval} rows", flush=True)
-            df["to_500ms_block"] = np.arange(len(df)) // aggregation_interval
-
-            agg_df = (
-                df.groupby("to_500ms_block")
-                .agg({
-                    "t": "mean",
-                    "gpu_energy": "mean",  
-                    "emissions": "mean"  
-                })
-                .reset_index(drop=True)
-            )
-        else:
-            agg_df = df
-
         fig, axes = plt.subplots(
             1, 2,
             figsize=(12, 6),
         )
         fig.suptitle('ResNet152 CodeCarbon, 5 Minutes', fontsize=16, fontweight='bold')
 
-        axes[0].plot(agg_df["t"], agg_df["gpu_energy"], linewidth=1.5)
+        axes[0].plot(df["t"], df["gpu_energy"], linewidth=1.5)
         axes[0].set_ylabel("GPU Energy (mWh)")
         axes[0].set_xlabel("Time (seconds)")
         axes[0].grid(alpha=0.3)
 
-        avg = agg_df["gpu_energy"].mean()
+        avg = df["gpu_energy"].mean()
         axes[0].set_title(f"GPU Energy (15-step avg, Overall Avg: {avg:.2e}mWh)")
 
         axes[0].set_ylim(bottom=0)
         if df["gpu_energy"].max() > 0:
             axes[0].set_ylim(top=df["gpu_energy"].max() * 1.1)
 
-        axes[1].plot(agg_df["t"], agg_df["emissions"], linewidth=1.5)
+        axes[1].plot(df["t"], df["emissions"], linewidth=1.5)
         axes[1].set_ylabel("Emissions (kg CO₂eq)")
         axes[1].set_xlabel("Time (seconds)")
         axes[1].grid(alpha=0.3)
 
-        avg = agg_df["emissions"].mean()
+        avg = df["emissions"].mean()
         axes[1].set_title(f"Emissions (15-step avg, Overall Avg: {avg:.2e}kg CO₂eq)")
 
         axes[1].set_ylim(bottom=0)
