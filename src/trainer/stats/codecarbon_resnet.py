@@ -315,9 +315,6 @@ class CodeCarbonStatsResNet(base.TrainerStats):
 
         # Compute relative time in seconds
         df["t"] = (df["timestamp"] - df["timestamp"].iloc[0]).dt.total_seconds()
-        #df["t"] = df["duration"].cumsum()
-
-        #df["t"] = df["timestamp"] - df["timestamp"].iloc[0]
 
         # only plot the first 5 minutes
         df = df[df["t"] <= 300]
@@ -400,19 +397,26 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         df["gpu_energy"] = pd.to_numeric(df["gpu_energy"], errors="coerce")
         df["emissions"] = pd.to_numeric(df["emissions"], errors="coerce")
 
-        # --- Aggregate every 15 rows ---
-        block_size = 15
-        df["block"] = np.arange(len(df)) // block_size
+        batch_size_str = str(self.batch_size)
 
-        agg_df = (
-            df.groupby("block")
-            .agg({
-                "t": "mean",                     # mean time in block
-                "gpu_energy": "mean",
-                "emissions": "mean"       # mean GPU util (ignores NaN)
-            })
-            .reset_index(drop=True)
-        )
+        if f"batch_size_{batch_size_str}" in batch_size_logging_interval_lookup and batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["GPU_interval"] > 1:
+            # GPU Util
+            # --- Aggregate over 500ms ---
+            aggregation_interval = batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["GPU_interval"]
+            print(f"Aggregating to 500ms over {aggregation_interval} rows", flush=True)
+            df["to_500ms_block"] = np.arange(len(df)) // aggregation_interval
+
+            agg_df = (
+                df.groupby("to_500ms_block")
+                .agg({
+                    "t": "mean",
+                    "gpu_energy": "mean",  
+                    "emissions": "mean"  
+                })
+                .reset_index(drop=True)
+            )
+        else:
+            agg_df = df
 
         fig, axes = plt.subplots(
             1, 2,

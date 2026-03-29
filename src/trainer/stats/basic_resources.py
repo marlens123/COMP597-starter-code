@@ -46,7 +46,10 @@ class BasicResourcesStats(base.TrainerStats):
         self.device = device 
 
         if torch.cuda.is_available():
-            pynvml.nvmlInit()
+            self.nvml_initialized = False
+            if torch.cuda.is_available():
+                pynvml.nvmlInit()
+                self.nvml_initialized = True
             self.gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(
                 self.device.index if self.device.index is not None else torch.cuda.current_device()
             )
@@ -92,7 +95,8 @@ class BasicResourcesStats(base.TrainerStats):
             self.substep_file.close()
 
         if torch.cuda.is_available():
-            pynvml.nvmlShutdown()
+            if self.nvml_initialized:
+                pynvml.nvmlShutdown()
 
         total_time = time.time() - self.training_time_start
 
@@ -125,7 +129,7 @@ class BasicResourcesStats(base.TrainerStats):
             gpu_util = 0
 
         gpu_mem = (
-            torch.cuda.memory_allocated() / 1024**2
+            torch.cuda.memory_allocated(torch.device) / 1024**2
             if torch.cuda.is_available() else 0
         )
 
@@ -141,7 +145,6 @@ class BasicResourcesStats(base.TrainerStats):
             "throughput_samples_per_sec": throughput,
             "cpu_util_percent": cpu_util,
             "ram_mb": ram_mem,
-            "gpu_util_percent": gpu_util,
             "gpu_mem_used_mb": gpu_mem,
             "gpu_util_percent": gpu_util
         }
@@ -187,7 +190,7 @@ class BasicResourcesStats(base.TrainerStats):
         duration = time.time() - self.substep_start
 
         gpu_mem = (
-            torch.cuda.memory_allocated() / 1024**2
+            torch.cuda.memory_allocated(self.device) / 1024**2
             if torch.cuda.is_available() else 0
         )
 
@@ -252,6 +255,9 @@ class BasicResourcesStats(base.TrainerStats):
                 .reset_index(drop=True)
             )
             gpu_y = gpu_df["gpu_util_percent"]
+        else:
+            gpu_df = df
+            gpu_y = pd.to_numeric(gpu_df["gpu_util_percent"], errors="coerce").fillna(0)
 
 
         if f"batch_size_{batch_size_str}" in batch_size_logging_interval_lookup and batch_size_logging_interval_lookup[f"batch_size_{batch_size_str}"]["CPU_interval"] > 1:
@@ -273,9 +279,6 @@ class BasicResourcesStats(base.TrainerStats):
         else:
             cpu_df = df
             cpu_y = pd.to_numeric(cpu_df["cpu_util_percent"], errors="coerce").fillna(0)
-
-            gpu_df = df
-            gpu_y = pd.to_numeric(cpu_df["gpu_util_percent"], errors="coerce").fillna(0)
 
         # GPU Util
         axes[0,0].plot(gpu_df["t"], gpu_y, linewidth=1.5)
@@ -400,7 +403,7 @@ class BasicResourcesStats(base.TrainerStats):
         phases = means.index
 
         fig, ax = plt.subplots(figsize=(8, 6))
-        fig.suptitle('ResNet152 Phase Metrics', fontsize=16, fontweight='bold')
+        fig.suptitle(f'ResNet152 Phase Metrics, Batch Size {self.batch_size}', fontsize=16, fontweight='bold')
 
         ax.bar(phases, means, yerr=stds, capsize=5)
 
