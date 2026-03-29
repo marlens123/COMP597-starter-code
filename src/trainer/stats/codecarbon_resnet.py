@@ -28,7 +28,7 @@ def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats
     else:
         logger.warning("No device provided to codecarbon trainer stats. Using default PyTorch device")
         device = torch.get_default_device() 
-    return CodeCarbonStatsResNet(device, conf.trainer_stats_configs.codecarbon.run_num, conf.trainer_stats_configs.codecarbon.project_name, conf.trainer_stats_configs.codecarbon.output_dir)
+    return CodeCarbonStatsResNet(device, conf.trainer_stats_configs.codecarbon.run_num, conf.trainer_stats_configs.codecarbon.project_name, conf.trainer_stats_configs.codecarbon.output_dir, conf.batch_size)
 
 class SimpleFileOutput(BaseOutput): 
     
@@ -150,7 +150,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
 
     """
 
-    def __init__(self, device : torch.device, run_num : int, project_name : str, output_dir : str) -> None: 
+    def __init__(self, device : torch.device, run_num : int, project_name : str, output_dir : str, batch_size : int) -> None: 
         
         # Track current iteration number in the training loop
         self.iteration = 0
@@ -167,16 +167,17 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         self.project_name = project_name
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
+        self.batch_size = batch_size
 
         self.logging_timestamp = time.time()
-        
+
         # Normal-mode tracker to track the entire training loop
         self.total_training_tracker = OfflineEmissionsTracker(
             project_name = project_name, 
             country_iso_code = "CAN",
             region = "quebec",
             save_to_file = False, 
-            output_handlers = [SimpleFileOutput(output_file_name = f"{self.run_number}cc_full_rank_{self.gpu_id}.csv", output_dir=output_dir)],
+            output_handlers = [SimpleFileOutput(output_file_name = f"{self.run_number}cc_full_rank_{self.gpu_id}_batch_size_{self.batch_size}_{self.logging_timestamp}.csv", output_dir=output_dir)],
             allow_multiple_runs = True,
             log_level = "warning",
             gpu_ids = [self.gpu_id],
@@ -190,7 +191,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             country_iso_code = "CAN", 
             region = "quebec", 
             save_to_file = False, 
-            output_handlers = [SimpleFileOutput(output_file_name = f"{self.run_number}cc_step_rank_{self.gpu_id}.csv", output_dir=output_dir)],
+            output_handlers = [SimpleFileOutput(output_file_name = f"{self.run_number}cc_step_rank_{self.gpu_id}_batch_size_{self.batch_size}_{self.logging_timestamp}.csv", output_dir=output_dir)],
             allow_multiple_runs = True, 
             api_call_interval = -1, 
             gpu_ids = [self.gpu_id],
@@ -205,7 +206,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             country_iso_code = "CAN", 
             region = "quebec", 
             save_to_file = False, 
-            output_handlers = [SimpleFileOutput(output_file_name = f"{self.run_number}cc_substep_rank_{self.gpu_id}.csv", output_dir=output_dir)],
+            output_handlers = [SimpleFileOutput(output_file_name = f"{self.run_number}cc_substep_rank_{self.gpu_id}_batch_size_{self.batch_size}_{self.logging_timestamp}.csv", output_dir=output_dir)],
             allow_multiple_runs = True, 
             api_call_interval = -1, 
             gpu_ids = [self.gpu_id],
