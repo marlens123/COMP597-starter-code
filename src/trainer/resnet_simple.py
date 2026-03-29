@@ -8,6 +8,7 @@ import src.trainer.stats as stats
 from typing import Optional, override
 import src.config as config
 import tqdm
+import time
 
 class ResNetSimpleTrainer(SimpleTrainer):
     """Wrapper around SimpleTrainer for ResNet-specific training."""
@@ -69,10 +70,18 @@ class ResNetSimpleTrainer(SimpleTrainer):
             `Trainer` and overrides the `train` method.
 
         """
-        progress_bar = tqdm.auto.tqdm(range(len(self.loader)), desc="loss: N/A")
+        max_duration = 5 * 60  # 5 minutes in seconds
+        start_time = time.time()
+
+        progress_bar = tqdm.auto.tqdm(desc="loss: N/A")
 
         self.stats.start_train()
+
         for i, batch in enumerate(self.loader):
+            elapsed = time.time() - start_time
+            if elapsed >= max_duration:
+                break
+
             self.stats.start_step()
             loss, descr = self.step(i, batch, model_kwargs)
             self.stats.stop_step()
@@ -82,7 +91,7 @@ class ResNetSimpleTrainer(SimpleTrainer):
                 self.save_checkpoint(i)
                 self.stats.stop_save_checkpoint()
 
-            # for every rank, log the loss
+            # logging
             self.stats.log_loss(loss)
             self.stats.log_step()
 
