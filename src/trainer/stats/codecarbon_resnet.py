@@ -308,7 +308,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         from pathlib import Path
         import numpy as np
 
-        df = pd.read_csv(Path(self.output_dir) / f"{self.run_number}cc_step_rank_{self.gpu_id}-steps.csv")
+        df = pd.read_csv(Path(self.output_dir) / f"{self.run_number}cc_step_rank_{self.gpu_id}_batch_size_{self.batch_size}_{self.logging_timestamp}.csv")
 
         if df.empty:
             logger.warning("No timeline data available.")
@@ -378,7 +378,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         from pathlib import Path
         import numpy as np
 
-        df = pd.read_csv(Path(self.output_dir) / f"{self.run_number}cc_step_rank_{self.gpu_id}-steps.csv")
+        df = pd.read_csv(Path(self.output_dir) / f"{self.run_number}cc_step_rank_{self.gpu_id}_batch_size_{self.batch_size}_{self.logging_timestamp}.csv")
 
         if df.empty:
             logger.warning("No timeline data available.")
