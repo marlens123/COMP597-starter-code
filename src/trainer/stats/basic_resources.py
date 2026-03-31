@@ -10,22 +10,11 @@ import csv
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
+import threading
 
 logger = logging.getLogger(__name__)
 
 trainer_stats_name="basic_resources_stats"
-
-# empirically defined from average training time,
-# to make sure we aggregate over 100ms (for CPU util)
-# and over 500ms (for GPU util)
-batch_size_logging_interval_lookup = {
-    "batch_size_4": {"CPU_interval": 3, "GPU_interval": 15},
-    "batch_size_8": {"CPU_interval": 2, "GPU_interval": 10},
-    "batch_size_16": {"CPU_interval": 1, "GPU_interval": 5},
-    "batch_size_32": {"CPU_interval": 1, "GPU_interval": 3},
-    "batch_size_64": {"CPU_interval": 1, "GPU_interval": 2},
-    "batch_size_128": {"CPU_interval": 1, "GPU_interval": 1},
-}
 
 def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats:
     if "device" in kwargs:
@@ -56,43 +45,110 @@ class BasicResourcesStats(base.TrainerStats):
         else:
             self.gpu_handle = None
 
-        self.nvml_log_interval = 15
-        self.cpu_util_log_interval = 3
-
         self.output_path = output_path
-        self.logging_timestamp = int(time.time())
+        self.logging_timestamp = int(time.time())   # used to differentiate logs from different runs
 
         Path(self.output_path).mkdir(parents=True, exist_ok=True)
-
-        self.step_file = None
-        self.step_writer = None
-        self.substep_file = None
-        self.substep_writer = None
 
         self.step_idx = 0
         self.batch_size = batch_size if batch_size is not None else 1
         self.world_size = 1
 
-        self.step_csv_path = Path(f"{self.output_path}/{csv_name}_{self.logging_timestamp}_batch_size_{self.batch_size}.csv")
+        self.step_csv_path = Path(f"{self.output_path}/{csv_name}_steps_{self.logging_timestamp}_batch_size_{self.batch_size}.csv")
+        self.step_file = None
+        self.step_writer = None
+
         self.substeps_csv_path = Path(f"{self.output_path}/{csv_name}_substeps_{self.logging_timestamp}_batch_size_{self.batch_size}.csv")
+        self.substep_file = None
+        self.substep_writer = None
+
+        self.timeline_csv_path = Path(
+            f"{self.output_path}/{csv_name}_counter_{self.logging_timestamp}_batch_size_{self.batch_size}.csv"
+        )
+        self.timeline_file = None
+        self.timeline_writer = None
+
+        self.sampling = False
+        self.sampler_thread = None
+
+        self.cpu_interval = 0.1   # 100 ms
+        self.gpu_interval = 0.5   # 500 ms
+
+        # to ensure that logging from the sampler thread doesn't interfere with the main training thread
+        self.lock = threading.Lock()
 
     def _cuda_sync(self):
         if torch.cuda.is_available():
             torch.cuda.synchronize(self.device)
 
+    def _sampler_loop(self):
+        next_cpu = time.time()
+        next_gpu = time.time()
+
+        while self.sampling:
+            now = time.time()
+
+            while now >= next_cpu:
+                cpu_util = psutil.cpu_percent(interval=None)
+                self._log_time_sample(timestamp=next_cpu, cpu=cpu_util)
+                next_cpu += self.cpu_interval
+
+            while now >= next_gpu:
+                gpu_util = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle).gpu if self.gpu_handle else 0
+                self._log_time_sample(timestamp=next_gpu, gpu=gpu_util)
+                next_gpu += self.gpu_interval
+
+            time.sleep(0.01)  # avoid busy waiting
+
+    def _log_time_sample(self, timestamp, cpu=None, gpu=None):
+        row = {
+            "timestamp": timestamp,
+            "cpu_util_percent": cpu,
+            "gpu_util_percent": gpu,
+        }
+
+        with self.lock:
+            self.timeline_writer.writerow(row)
+
     def start_train(self) -> None:
-        """Initialize CSV logging."""
         self.training_time_start = time.time()
 
         self.step_file = open(self.step_csv_path, mode="w", newline="")
+        self.step_writer = csv.DictWriter(
+            self.step_file, 
+            fieldnames=["step", "step_end_timestamp", "time_sec", "throughput_samples_per_sec", "ram_mb", "gpu_mem_used_mb"]
+        )
+        self.step_writer.writeheader()
+
         self.substep_file = open(self.substeps_csv_path, mode="w", newline="")
+        self.substep_writer = csv.DictWriter(
+            self.substep_file,
+            fieldnames=["step", "substep_end_timestamp", "substep", "time_sec"]
+        )
+        self.substep_writer.writeheader()
+
+        self.timeline_file = open(self.timeline_csv_path, mode="w", newline="")
+        self.timeline_writer = csv.DictWriter(
+            self.timeline_file,
+            fieldnames=["timestamp", "cpu_util_percent", "gpu_util_percent"]
+        )
+        self.timeline_writer.writeheader()
+
+        self.sampling = True
+        self.sampler_thread = threading.Thread(target=self._sampler_loop, daemon=True)
+        self.sampler_thread.start()
 
     def stop_train(self) -> None:
-        """Close CSV file."""
+        self.sampling = False
+        if self.sampler_thread:
+            self.sampler_thread.join()
+
         if self.step_file:
             self.step_file.close()
         if self.substep_file:
             self.substep_file.close()
+        if self.timeline_file:
+            self.timeline_file.close()
 
         if torch.cuda.is_available():
             if self.nvml_initialized:
@@ -101,10 +157,7 @@ class BasicResourcesStats(base.TrainerStats):
         total_time = time.time() - self.training_time_start
 
         print(f"End-to-end training time with logging: {total_time}.")
-        self._generate_timeline_plots()
-        self._generate_substep_plot()
-
-        print("Saved stats & plots to:", self.output_path)
+        print("Saved stats to:", self.output_path)
 
     def start_step(self) -> None:
         self._cuda_sync()
@@ -120,18 +173,11 @@ class BasicResourcesStats(base.TrainerStats):
 
         step_time = time_after - self.time_before_step
 
-        if self.gpu_handle:
-            gpu_util = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle).gpu
-        else:
-            gpu_util = 0
-
         gpu_mem = (
-            torch.cuda.memory_allocated(torch.device) / 1024**2
+            torch.cuda.memory_allocated(self.device) / 1024**2
             if torch.cuda.is_available() else 0
         )
-
-        cpu_util = psutil.cpu_percent(interval=None)
-
+        
         global_batch = self.batch_size * self.world_size
         throughput = global_batch / step_time if step_time > 0 else 0
 
@@ -140,17 +186,12 @@ class BasicResourcesStats(base.TrainerStats):
             "step_end_timestamp": time.time(),
             "time_sec": step_time,
             "throughput_samples_per_sec": throughput,
-            "cpu_util_percent": cpu_util,
             "ram_mb": ram_mem,
             "gpu_mem_used_mb": gpu_mem,
-            "gpu_util_percent": gpu_util
         }
 
-        if self.step_writer is None:
-            self.step_writer = csv.DictWriter(self.step_file, fieldnames=row.keys())
-            self.step_writer.writeheader()
-
-        self.step_writer.writerow(row)
+        with self.lock:
+            self.step_writer.writerow(row)
 
         self.step_idx += 1
 
@@ -186,236 +227,15 @@ class BasicResourcesStats(base.TrainerStats):
 
         duration = time.time() - self.substep_start
 
-        gpu_mem = (
-            torch.cuda.memory_allocated(self.device) / 1024**2
-            if torch.cuda.is_available() else 0
-        )
-
         row = {
             "step": self.step_idx,
             "substep_end_timestamp": time.time(),
             "substep": name,
             "time_sec": duration,
-            "gpu_mem_used_mb": gpu_mem,
         }
 
-        if self.substep_writer is None:
-            self.substep_writer = csv.DictWriter(
-                self.substep_file,
-                fieldnames=row.keys()
-            )
-            self.substep_writer.writeheader()
-
-        self.substep_writer.writerow(row)
-
-    def _generate_timeline_plots(self):
-        import pandas as pd
-        import matplotlib.pyplot as plt
-        from pathlib import Path
-
-        df = pd.read_csv(self.step_csv_path)
-
-        if df.empty:
-            logger.warning("No timeline data available.")
-            return
-
-        # Convert timestamp to relative seconds
-        df["t"] = df["step_end_timestamp"] - df["step_end_timestamp"].iloc[0]
-
-        # only plot the first 5 minutes
-        df = df[df["t"] <= 300]
-
-        fig, axes = plt.subplots(
-            2, 3,
-            figsize=(18, 8),
-        )
-        fig.suptitle(f"ResNet152 Timelines, 5 Minutes, Batch Size {str(self.batch_size)}", fontsize=16, fontweight='bold')
-
-        for ax in axes.flat:
-            ax.tick_params(labelbottom=True)
-
-        gpu_aggregation_interval = 0.5  # seconds
-
-        print(f"Aggregating to 500ms time bins", flush=True)
-
-        t0 = df["t"].iloc[0]
-        df["to_500ms_block"] = ((df["t"] - t0) / gpu_aggregation_interval).astype(int)
-
-        gpu_df = (
-            df.groupby("to_500ms_block")
-            .agg({
-                "t": "first",                    # take the first timestamp in the block as the x-axis value
-                "gpu_util_percent": "mean",
-            })
-            .reset_index(drop=True)
-        )
-        gpu_y = gpu_df["gpu_util_percent"]
-
-        cpu_aggregation_interval = 0.5  # seconds
-
-        print(f"Aggregating to 500ms time bins", flush=True)
-
-        t0 = df["t"].iloc[0]
-        df["to_500ms_block"] = ((df["t"] - t0) / cpu_aggregation_interval).astype(int)
-
-        cpu_df = (
-            df.groupby("to_500ms_block")
-            .agg({
-                "t": "first",                    # take the first timestamp in the block as the x-axis value
-                "cpu_util_percent": "mean",
-            })
-            .reset_index(drop=True)
-        )
-        cpu_y = cpu_df["cpu_util_percent"]
-
-        # GPU Util
-        axes[0,0].plot(gpu_df["t"], gpu_y, linewidth=1.5)
-        axes[0,0].set_ylabel("GPU Util (%)")
-        axes[0,0].grid(alpha=0.3)
-
-        avg = np.mean(gpu_y)
-        axes[0,0].set_title(f"GPU Utilization (Average: {avg:.2f})")
-        axes[0,0].set_xlabel("Time (seconds)")
-
-        axes[0,0].set_ylim(bottom=0)
-        if df["gpu_util_percent"].max() > 0:
-            axes[0,0].set_ylim(top=df["gpu_util_percent"].max() * 1.1)
-
-        # CPU Util
-        axes[0,1].plot(cpu_df["t"], cpu_y, linewidth=1.5)
-        axes[0,1].set_ylabel("CPU Util (%)")
-        axes[0,1].grid(alpha=0.3)
-
-        avg = np.mean(cpu_y)
-        axes[0,1].set_title(f"CPU Utilization (Average: {avg:.2f})")
-        axes[0,1].set_xlabel("Time (seconds)")
-
-        axes[0,1].set_ylim(bottom=0)
-        if df["cpu_util_percent"].max() > 0:
-            axes[0,1].set_ylim(top=df["cpu_util_percent"].max() * 1.1)
-
-        # GPU Memory
-        y = pd.to_numeric(df["gpu_mem_used_mb"], errors="coerce").fillna(0)
-
-        axes[0,2].plot(df["t"], y, linewidth=1.5)
-        axes[0,2].set_ylabel("GPU Mem (MB)")
-        axes[0,2].grid(alpha=0.3)
-
-        avg = np.mean(y)
-        axes[0,2].set_title(f"GPU Memory (Average: {avg:.2f})")
-        axes[0,2].set_xlabel("Time (seconds)")
-
-        axes[0,2].set_ylim(bottom=0)
-        if df["gpu_mem_used_mb"].max() > 0:
-            axes[0,2].set_ylim(top=df["gpu_mem_used_mb"].max() * 1.1)
-
-        # RAM
-        y = pd.to_numeric(df["ram_mb"], errors="coerce").fillna(0)
-
-        axes[1,0].plot(df["t"], y, linewidth=1.5)
-        axes[1,0].set_ylabel("RAM (MB)")
-        axes[1,0].grid(alpha=0.3)
-
-        avg = np.mean(y)
-        axes[1,0].set_title(f"RAM Usage (Average: {avg:.2f})")
-        axes[1,0].set_xlabel("Time (seconds)")
-
-        axes[1,0].set_ylim(bottom=0)
-        if df["ram_mb"].max() > 0:
-            axes[1,0].set_ylim(top=df["ram_mb"].max() * 1.1)
-
-        # Throughput
-        y = pd.to_numeric(df["throughput_samples_per_sec"], errors="coerce").fillna(0)
-
-        axes[1,1].plot(df["t"], y, linewidth=1.5)
-        axes[1,1].set_ylabel("Samples / sec")
-        axes[1,1].grid(alpha=0.3)
-
-        avg = np.mean(y)
-        axes[1,1].set_title(f"Throughput (Average: {avg:.2f})")
-        axes[1,1].set_xlabel("Time (seconds)")
-
-        axes[1,1].set_ylim(bottom=0)
-        if df["throughput_samples_per_sec"].max() > 0:
-            axes[1,1].set_ylim(top=df["throughput_samples_per_sec"].max() * 1.1)
-
-        # Time per step
-        y = pd.to_numeric(df["time_sec"], errors="coerce").fillna(0)
-
-        # for timestep logging, remove the first timestep since it will be off
-        x = df["step"][1:]
-        y = y[1:]
-        avg = y.mean()
-
-        axes[1,2].plot(x, y, linewidth=1.5)
-        axes[1,2].set_ylabel(f"Time (sec)")
-        axes[1,2].grid(alpha=0.3)
-
-        avg = np.mean(y)
-        axes[1,2].set_title(f"Step Time (Average: {avg:.2f})")
-        axes[1,2].set_xlabel("Step")
-
-        axes[1,2].set_ylim(bottom=0)
-        if df["time_sec"].max() > 0:
-            axes[1,2].set_ylim(top=df["time_sec"].max() * 1.1)
-
-        plt.tight_layout()
-        output = Path(self.output_path) / f"timeline_{self.logging_timestamp}.png"
-        plt.savefig(output, dpi=150)
-        plt.close()
-
-        logger.info(f"Saved timeline plot to {output}.")
-
-    def _generate_substep_plot(self):
-        import pandas as pd
-        import matplotlib.pyplot as plt
-        import numpy as np
-        from pathlib import Path
-
-        sub_df = pd.read_csv(self.substeps_csv_path)
-        sub_df["t"] = sub_df["substep_end_timestamp"] - sub_df["substep_end_timestamp"].iloc[0]
-        sub_df = sub_df[sub_df["t"] <= 300]
-
-        if sub_df.empty:
-            logger.warning("No substep data available.")
-            return
-
-        # Only phase timing
-        phase_df = sub_df[sub_df["substep"].isin(["forward", "backward", "optimizer"])]
-
-        grouped = phase_df.groupby("substep")["time_sec"]
-
-        means = grouped.mean()
-        stds = grouped.std()
-
-        phases = means.index
-
-        fig, ax = plt.subplots(figsize=(8, 6))
-        fig.suptitle(f'ResNet152 Phase Metrics, Batch Size {self.batch_size}', fontsize=16, fontweight='bold')
-
-        ax.bar(phases, means, yerr=stds, capsize=5)
-
-        for i, phase in enumerate(phases):
-            ax.text(
-                i,
-                means[i],
-                f"{means[i]:.3f}±{stds[i]:.3f}",
-                ha="center",
-                va="bottom",
-                fontsize=10
-            )
-
-        ax.set_ylabel("Time per Phase (sec)")
-        ax.set_title("Mean Phase Time ± Std Dev")
-        ax.grid(axis="y", alpha=0.3)
-
-        plt.tight_layout()
-
-        output = Path(self.output_path) / f"phase_bars_{self.logging_timestamp}.png"
-        plt.savefig(output, dpi=150)
-        plt.close()
-
-        logger.info(f"Saved phase bar plot to {output}")
+        with self.lock:
+            self.substep_writer.writerow(row)
 
     def log_loss(self, loss: torch.Tensor) -> None:
         """Logs the loss of the current step by passing it to the stats."""

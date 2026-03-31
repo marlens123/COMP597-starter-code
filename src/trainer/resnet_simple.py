@@ -10,6 +10,14 @@ import src.config as config
 import tqdm
 import time
 
+# Pre-computed approximations of the number of steps needed to train for 5 minutes (including logging overhead)
+# The first step is always much slower than the rest, so we exclude it from the calculations.
+pre_computed_num_steps = {
+    "batch_size_32": 1765,
+    "batch_size_64": 910,
+    "batch_size_128": 455,
+}
+
 class ResNetSimpleTrainer(SimpleTrainer):
     """Wrapper around SimpleTrainer for ResNet-specific training."""
     def __init__(self, 
@@ -70,16 +78,14 @@ class ResNetSimpleTrainer(SimpleTrainer):
             `Trainer` and overrides the `train` method.
 
         """
-        max_duration = 5 * 60  # 5 minutes in seconds
-        start_time = time.time()
-
         progress_bar = tqdm.auto.tqdm(desc="loss: N/A")
 
         self.stats.start_train()
 
         for i, batch in enumerate(self.loader):
-            elapsed = time.time() - start_time
-            if elapsed >= max_duration:
+            batch_size = batch[0].shape[0] if isinstance(batch, (list, tuple)) else None
+
+            if i >= pre_computed_num_steps.get(f"batch_size_{batch_size}", float('inf')):
                 break
 
             self.stats.start_step()
