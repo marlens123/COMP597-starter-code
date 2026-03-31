@@ -71,8 +71,8 @@ class BasicResourcesStats(base.TrainerStats):
         self.sampling = False
         self.sampler_thread = None
 
-        self.cpu_interval = 0.1   # 100 ms
-        self.gpu_interval = 0.5   # 500 ms
+        self.cpu_interval = 0.1     # 100 ms
+        self.gpu_interval = 0.166   # 166 ms
 
         # to ensure that logging from the sampler thread doesn't interfere with the main training thread
         self.lock = threading.Lock()
@@ -94,7 +94,7 @@ class BasicResourcesStats(base.TrainerStats):
                 next_cpu += self.cpu_interval
 
             while now >= next_gpu:
-                gpu_util = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle).gpu if self.gpu_handle else 0
+                gpu_util = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle).gpu if self.gpu_handle else None
                 self._log_time_sample(timestamp=next_gpu, gpu=gpu_util)
                 next_gpu += self.gpu_interval
 
@@ -111,12 +111,13 @@ class BasicResourcesStats(base.TrainerStats):
             self.timeline_writer.writerow(row)
 
     def start_train(self) -> None:
+        self._cuda_sync()
         self.training_time_start = time.time()
 
         self.step_file = open(self.step_csv_path, mode="w", newline="")
         self.step_writer = csv.DictWriter(
             self.step_file, 
-            fieldnames=["step", "step_end_timestamp", "time_sec", "throughput_samples_per_sec", "ram_mb", "gpu_mem_used_mb"]
+            fieldnames=["step", "step_end_timestamp", "time_sec", "throughput_samples_per_sec", "ram_mb", "gpu_mem_used_mb", "gpu_util", "cpu_util"]
         )
         self.step_writer.writeheader()
 
@@ -135,10 +136,12 @@ class BasicResourcesStats(base.TrainerStats):
         self.timeline_writer.writeheader()
 
         self.sampling = True
+    
         self.sampler_thread = threading.Thread(target=self._sampler_loop, daemon=True)
         self.sampler_thread.start()
 
     def stop_train(self) -> None:
+        self._cuda_sync()
         self.sampling = False
         if self.sampler_thread:
             self.sampler_thread.join()
@@ -180,6 +183,8 @@ class BasicResourcesStats(base.TrainerStats):
         
         global_batch = self.batch_size * self.world_size
         throughput = global_batch / step_time if step_time > 0 else 0
+        gpu_util = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle).gpu if self.gpu_handle else None
+        cpu_util = psutil.cpu_percent(interval=None)
 
         row = {
             "step": self.step_idx,
@@ -188,6 +193,8 @@ class BasicResourcesStats(base.TrainerStats):
             "throughput_samples_per_sec": throughput,
             "ram_mb": ram_mem,
             "gpu_mem_used_mb": gpu_mem,
+            "gpu_util": gpu_util,
+            "cpu_util": cpu_util,
         }
 
         with self.lock:
