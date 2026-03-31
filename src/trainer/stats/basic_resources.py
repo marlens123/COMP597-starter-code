@@ -25,6 +25,58 @@ def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats
         device = torch.get_default_device()
     return BasicResourcesStats(device=device, output_path=conf.trainer_stats_configs.basic_resources.output_dir, batch_size=conf.batch_size)
 
+def sampler_loop(sampling_flag, timeline_csv_path, cpu_interval, gpu_interval, device_index, parent_pid):
+    import time
+    import csv
+    import psutil
+    import pynvml
+    import torch
+
+    process = psutil.Process(parent_pid)
+
+    gpu_handle = None
+    if torch.cuda.is_available():
+        pynvml.nvmlInit()
+        gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(
+            device_index if device_index is not None else torch.cuda.current_device()
+        )
+
+    with open(timeline_csv_path, mode="w", newline="") as f:
+        writer = csv.DictWriter(
+            f, fieldnames=["timestamp", "cpu_util_percent", "gpu_util_percent"]
+        )
+        writer.writeheader()
+
+        next_cpu = time.time()
+        next_gpu = time.time()
+
+        while sampling_flag.value:
+            now = time.time()
+
+            while now >= next_cpu:
+                # get CPU utilization of the training process, not the whole system
+                cpu_util = process.cpu_percent(interval=None)
+                writer.writerow({
+                    "timestamp": next_cpu,
+                    "cpu_util_percent": cpu_util,
+                    "gpu_util_percent": None,
+                })
+                next_cpu += cpu_interval
+
+            while now >= next_gpu:
+                gpu_util = (
+                    pynvml.nvmlDeviceGetUtilizationRates(gpu_handle).gpu
+                    if gpu_handle else None
+                )
+                writer.writerow({
+                    "timestamp": next_gpu,
+                    "cpu_util_percent": None,
+                    "gpu_util_percent": gpu_util,
+                })
+                next_gpu += gpu_interval
+
+            time.sleep(0.01)
+
 class BasicResourcesStats(base.TrainerStats):
     """Stats class that tracks GPU utilization, memory consumption, and I/O."""
 
@@ -72,6 +124,9 @@ class BasicResourcesStats(base.TrainerStats):
         self.sampling = False
         self.sampler_thread = None
 
+        ctx = mp.get_context("spawn")
+        self.sampling_flag = ctx.Value('b', True)
+
         self.cpu_interval = 0.1     # 100 ms
         self.gpu_interval = 0.166   # 166 ms
 
@@ -81,35 +136,6 @@ class BasicResourcesStats(base.TrainerStats):
     def _cuda_sync(self):
         if torch.cuda.is_available():
             torch.cuda.synchronize(self.device)
-
-    def _sampler_loop(self):
-        next_cpu = time.time()
-        next_gpu = time.time()
-
-        while self.sampling:
-            now = time.time()
-
-            while now >= next_cpu:
-                cpu_util = psutil.cpu_percent(interval=None)
-                self._log_time_sample(timestamp=next_cpu, cpu=cpu_util)
-                next_cpu += self.cpu_interval
-
-            while now >= next_gpu:
-                gpu_util = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle).gpu if self.gpu_handle else None
-                self._log_time_sample(timestamp=next_gpu, gpu=gpu_util)
-                next_gpu += self.gpu_interval
-
-            time.sleep(0.01)  # avoid busy waiting
-
-    def _log_time_sample(self, timestamp, cpu=None, gpu=None):
-        row = {
-            "timestamp": timestamp,
-            "cpu_util_percent": cpu,
-            "gpu_util_percent": gpu,
-        }
-
-        with self.lock:
-            self.timeline_writer.writerow(row)
 
     def start_train(self) -> None:
         self._cuda_sync()
@@ -129,29 +155,28 @@ class BasicResourcesStats(base.TrainerStats):
         )
         self.substep_writer.writeheader()
 
-        self.timeline_file = open(self.timeline_csv_path, mode="w", newline="")
-        self.timeline_writer = csv.DictWriter(
-            self.timeline_file,
-            fieldnames=["timestamp", "cpu_util_percent", "gpu_util_percent"]
-        )
-        self.timeline_writer.writeheader()
-
-        self.sampling = True
-
         ctx = mp.get_context('spawn')
-        q = ctx.Queue()
-        self.sampler_thread = ctx.Process(target=self._sampler_loop, args=(q,))
+        self.sampler_thread = ctx.Process(
+            target=sampler_loop,
+            args=(
+                self.sampling_flag,
+                str(self.timeline_csv_path),
+                self.cpu_interval,
+                self.gpu_interval,
+                self.device.index if self.device.index is not None else None,
+                os.getpid(),
+            ),
+        )
+
+        self.sampling_flag.value = True
         self.sampler_thread.start()
-        #self.sampler_thread.join()
-    
-        #self.sampler_thread = threading.Thread(target=self._sampler_loop, daemon=True)
-        #self.sampler_thread.start()
+
 
     def stop_train(self) -> None:
         self._cuda_sync()
-        self.sampling = False
-        if self.sampler_thread:
-            self.sampler_thread.join()
+
+        self.sampling_flag.value = False
+        self.sampler_thread.join()
 
         if self.step_file:
             self.step_file.close()
