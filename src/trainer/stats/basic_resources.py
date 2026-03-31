@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import threading
+import multiprocessing as mp
 
 logger = logging.getLogger(__name__)
 
@@ -136,9 +137,15 @@ class BasicResourcesStats(base.TrainerStats):
         self.timeline_writer.writeheader()
 
         self.sampling = True
-    
-        self.sampler_thread = threading.Thread(target=self._sampler_loop, daemon=True)
+
+        ctx = mp.get_context('spawn')
+        q = ctx.Queue()
+        self.sampler_thread = ctx.Process(target=self._sampler_loop, args=(q,))
         self.sampler_thread.start()
+        #self.sampler_thread.join()
+    
+        #self.sampler_thread = threading.Thread(target=self._sampler_loop, daemon=True)
+        #self.sampler_thread.start()
 
     def stop_train(self) -> None:
         self._cuda_sync()

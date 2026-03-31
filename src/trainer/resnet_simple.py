@@ -13,8 +13,8 @@ import time
 # Pre-computed approximations of the number of steps needed to train for 5 minutes (including logging overhead)
 # The first step is always much slower than the rest, so we exclude it from the calculations.
 pre_computed_num_steps = {
-    "batch_size_32": 1400,
-    "batch_size_64": 700,
+    "batch_size_32": 1292,
+    "batch_size_64": 881,
     "batch_size_128": 294,
 }
 
