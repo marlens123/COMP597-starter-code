@@ -31,6 +31,8 @@ class ResNetSimpleTrainer(SimpleTrainer):
         super().__init__(loader=loader, model=model, optimizer=optimizer, lr_scheduler=lr_scheduler, device=device, stats=stats, conf=conf)
 
         self.criterion = nn.CrossEntropyLoss().to(self.model.device)
+        self.average_time_per_step = 0.0
+        self.total_steps = 0
 
     @override
     def process_batch(self, i : int, batch : Any) -> Any:
@@ -83,10 +85,11 @@ class ResNetSimpleTrainer(SimpleTrainer):
         self.stats.start_train()
 
         for i, batch in enumerate(self.loader):
+            iter_start_time = time.time()
             batch_size = batch[0].shape[0] if isinstance(batch, (list, tuple)) else None
 
-            if i >= pre_computed_num_steps.get(f"batch_size_{batch_size}", float('inf')):
-                break
+            #if i >= pre_computed_num_steps.get(f"batch_size_{batch_size}", float('inf')):
+            #    break
 
             self.stats.start_step()
             loss, descr = self.step(i, batch, model_kwargs)
@@ -106,9 +109,15 @@ class ResNetSimpleTrainer(SimpleTrainer):
             progress_bar.clear()
             progress_bar.update(1)
 
+            iter_time = time.time() - iter_start_time
+            progress_bar.set_description(f"loss: {loss:.4f}, time/iter: {iter_time:.2f}s, {descr}")
+            self.total_steps += 1
+            self.average_time_per_step += (iter_time - self.average_time_per_step) / self.total_steps
+
         self.stats.stop_train()
         progress_bar.close()
         self.stats.log_stats()
+        print("average time per step:", self.average_time_per_step)
 
     def checkpoint_dict(self, i: int) -> Dict[str, Any]:
         super_dict = super().checkpoint_dict(i)
