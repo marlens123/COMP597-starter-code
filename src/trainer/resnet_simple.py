@@ -79,6 +79,7 @@ class ResNetSimpleTrainer(SimpleTrainer):
 
         """
         progress_bar = tqdm.auto.tqdm(desc="loss: N/A")
+        steps = 0
 
         self.stats.start_train()
 
@@ -87,7 +88,7 @@ class ResNetSimpleTrainer(SimpleTrainer):
             for i, batch in enumerate(self.loader):
                 batch_size = batch[0].shape[0] if isinstance(batch, (list, tuple)) else None
 
-                if i >= pre_computed_num_steps.get(f"batch_size_{batch_size}", float('inf')):
+                if steps >= pre_computed_num_steps.get(f"batch_size_{batch_size}", float('inf')):
                     break
 
                 self.stats.start_step()
@@ -107,6 +108,8 @@ class ResNetSimpleTrainer(SimpleTrainer):
                     progress_bar.clear()
                 progress_bar.clear()
                 progress_bar.update(1)
+
+                steps += 1
 
         self.stats.stop_train()
         progress_bar.close()
