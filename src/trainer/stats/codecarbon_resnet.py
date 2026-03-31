@@ -183,7 +183,6 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             api_call_interval = -1, 
             gpu_ids = [self.gpu_id],
             log_level = "warning",
-            measure_power_secs=0.5,
         )
 
         # Initialise task-mode trackers

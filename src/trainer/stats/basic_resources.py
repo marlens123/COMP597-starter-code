@@ -163,13 +163,11 @@ class BasicResourcesStats(base.TrainerStats):
         print("Saved stats to:", self.output_path)
 
     def start_step(self) -> None:
-        self._cuda_sync()
 
         self.time_before_step = time.time()
         self.cpu_before_step = self.process.cpu_times()
 
     def stop_step(self) -> None:
-        self._cuda_sync()
 
         time_after = time.time()
         ram_mem = psutil.virtual_memory().used / 1024**2
