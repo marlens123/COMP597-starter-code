@@ -83,6 +83,8 @@ class ResNetSimpleTrainer(SimpleTrainer):
 
         self.stats.start_train()
 
+        start_time = time.time()
+
         # loop to enable restarting dataloader if we haven't reached the pre-computed number of steps for 5 minutes of training
         while steps < pre_computed_num_steps.get(f"batch_size_{self.loader.batch_size}", float('inf')):
             for i, batch in enumerate(self.loader):
@@ -105,6 +107,11 @@ class ResNetSimpleTrainer(SimpleTrainer):
                 progress_bar.update(1)
 
                 steps += 1
+
+                # if time exceeds 5 minutes, break out of the loop and print the steps completed
+                if time.time() - start_time > 300: # 300 seconds = 5 minutes
+                    print(f"Reached 5 minutes of training for {self.loader.batch_size}. Steps completed: {steps}.")
+                    break
 
         self.stats.stop_train()
         progress_bar.close()
