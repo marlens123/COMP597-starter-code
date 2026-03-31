@@ -84,13 +84,8 @@ class ResNetSimpleTrainer(SimpleTrainer):
         self.stats.start_train()
 
         # loop to enable restarting dataloader if we haven't reached the pre-computed number of steps for 5 minutes of training
-        while True:
+        while steps < pre_computed_num_steps.get(f"batch_size_{self.loader.batch_size}", float('inf')):
             for i, batch in enumerate(self.loader):
-                batch_size = batch[0].shape[0] if isinstance(batch, (list, tuple)) else None
-
-                if steps >= pre_computed_num_steps.get(f"batch_size_{batch_size}", float('inf')):
-                    break
-
                 self.stats.start_step()
                 loss, descr = self.step(i, batch, model_kwargs)
                 self.stats.stop_step()
