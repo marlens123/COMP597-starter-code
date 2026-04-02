@@ -210,6 +210,8 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             torch.cuda.synchronize(self.device)
             self.tracker_runs = True
             self.training_step_tracker.start_task(task_name = f"Step #{self.iteration}")
+        else:
+            self.tracker_runs = False
 
     def stop_step(self) -> None:
 
