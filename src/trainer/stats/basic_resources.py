@@ -91,9 +91,6 @@ class BasicResourcesStats(base.TrainerStats):
         self.cpu_interval = 0.1     # 100 ms
         self.gpu_interval = 0.166   # 166 ms
 
-        # to ensure that logging from the sampler thread doesn't interfere with the main training thread
-        self.lock = threading.Lock()
-
     def _cuda_sync(self):
         if torch.cuda.is_available():
             torch.cuda.synchronize(self.device)
@@ -129,7 +126,6 @@ class BasicResourcesStats(base.TrainerStats):
         self._cuda_sync()
 
         self.sampling_flag.value = False
-        self.sampler_thread.join()
 
         if self.step_file:
             self.step_file.close()
@@ -233,8 +229,7 @@ class BasicResourcesStats(base.TrainerStats):
             "time_sec": duration,
         }
 
-        with self.lock:
-            self.substep_writer.writerow(row)
+        self.substep_writer.writerow(row)
 
     def log_loss(self, loss: torch.Tensor) -> None:
         """Logs the loss of the current step by passing it to the stats."""
