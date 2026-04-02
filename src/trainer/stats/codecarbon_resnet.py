@@ -17,6 +17,12 @@ import time
 
 logger = logging.getLogger(__name__)
 
+pre_computed_cpu_interval = {
+    "batch_size_32": 3,
+    "batch_size_64": 2,
+    "batch_size_128": 1,
+}
+
 # artificially force psutil to fail, so that CodeCarbon uses constant mode for CPU measurements
 codecarbon.core.cpu.is_psutil_available = lambda: False
 
@@ -168,8 +174,9 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
         self.batch_size = batch_size
+        self.tracker_runs = False
 
-        self.logging_timestamp = time.time()
+        self.logging_timestamp = time.perf_counter()   # used to differentiate logs from different runs
 
         # Task-mode tracker to track steps (iterations) within the training loop
         self.training_step_tracker = OfflineEmissionsTracker(
@@ -196,17 +203,19 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         
         self.training_step_tracker.stop()
 
-        self._generate_timeline_plots()
-        self._generate_timeline_plots_avg()
-
     def start_step(self) -> None:
         self.iteration += 1
-        torch.cuda.synchronize(self.device)
-        self.training_step_tracker.start_task(task_name = f"Step #{self.iteration}")
+
+        if self.iteration % pre_computed_cpu_interval[f"batch_size_{self.batch_size}"] == 0: # log every N steps based on batch size
+            torch.cuda.synchronize(self.device)
+            self.tracker_runs = True
+            self.training_step_tracker.start_task(task_name = f"Step #{self.iteration}")
 
     def stop_step(self) -> None:
-        torch.cuda.synchronize(self.device)
-        self.training_step_tracker.stop_task(task_name = f"Step #{self.iteration}")
+
+        if self.tracker_runs:
+            torch.cuda.synchronize(self.device)
+            self.training_step_tracker.stop_task(task_name = f"Step #{self.iteration}")
 
     def start_forward(self) -> None: 
         pass
@@ -262,140 +271,3 @@ class CodeCarbonStatsResNet(base.TrainerStats):
                 "loss": loss.to(torch.device("cpu"), non_blocking=True),
             }
         )
-
-    def _generate_timeline_plots(self):
-        import pandas as pd
-        import matplotlib.pyplot as plt
-        from pathlib import Path
-        import numpy as np
-
-        df = pd.read_csv(Path(self.output_dir) / f"{self.run_number}cc_step_rank_{self.gpu_id}_batch_size_{self.batch_size}_{self.logging_timestamp}.csv")
-
-        if df.empty:
-            logger.warning("No timeline data available.")
-            return
-
-        # Convert to datetime
-        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
-
-        # Compute relative time in seconds
-        df["t"] = (df["timestamp"] - df["timestamp"].iloc[0]).dt.total_seconds()
-
-        # only plot the first 5 minutes
-        df = df[df["t"] <= 300]
-
-        fig, axes = plt.subplots(
-            1, 2,
-            figsize=(12, 6),
-        )
-        fig.suptitle('ResNet152 CodeCarbon, 5 Minutes', fontsize=16, fontweight='bold')
-
-        for ax in axes.flat:
-            ax.tick_params(labelbottom=True)
-
-        # GPU Energy
-        y = pd.to_numeric(df["gpu_energy"], errors="coerce").fillna(0)
-        y_for_mean = pd.to_numeric(df["gpu_energy"], errors="coerce")
-
-        axes[0].plot(df["t"], y, linewidth=1.5)
-        axes[0].set_ylabel("GPU Energy (mWh)")
-        axes[0].grid(alpha=0.3)
-
-        avg = np.mean(y_for_mean)
-        axes[0].set_title(f"GPU Energy (Average: {avg:.2e}mWh)")
-        axes[0].set_xlabel("Time (seconds)")
-
-        axes[0].set_ylim(bottom=0)
-        if df["gpu_energy"].max() > 0:
-            axes[0].set_ylim(top=df["gpu_energy"].max() * 1.1)
-
-        # Emissions
-        y = pd.to_numeric(df["emissions"], errors="coerce").fillna(0)
-        y_for_mean = pd.to_numeric(df["emissions"], errors="coerce")
-
-        axes[1].plot(df["t"], y, linewidth=1.5)
-        axes[1].set_ylabel("Emissions (kg CO2eq)")
-        axes[1].grid(alpha=0.3)
-
-        avg = np.mean(y_for_mean)
-        axes[1].set_title(f"Emissions (Average: {avg:.2e}kg CO2eq)")
-        axes[1].set_xlabel("Time (seconds)")
-
-        axes[1].set_ylim(bottom=0)
-        if df["emissions"].max() > 0:
-            axes[1].set_ylim(top=df["emissions"].max() * 1.1)
-
-        plt.tight_layout()
-        output = Path(self.output_dir) / f"timeline_cc_{self.logging_timestamp}.png"
-        plt.savefig(output, dpi=150)
-        plt.close()
-
-        logger.info(f"Saved timeline plot to {output}")
-
-
-    def _generate_timeline_plots_avg(self):
-        import pandas as pd
-        import matplotlib.pyplot as plt
-        from pathlib import Path
-        import numpy as np
-
-        df = pd.read_csv(Path(self.output_dir) / f"{self.run_number}cc_step_rank_{self.gpu_id}_batch_size_{self.batch_size}_{self.logging_timestamp}.csv")
-
-        if df.empty:
-            logger.warning("No timeline data available.")
-            return
-
-        # Convert to datetime
-        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
-
-        # Compute relative time in seconds
-        df["t"] = (df["timestamp"] - df["timestamp"].iloc[0]).dt.total_seconds()
-        #df["t"] = df["duration"].cumsum()
-
-        # Only keep first 5 minutes
-        df = df[df["t"] <= 300]
-
-        if df.empty:
-            logger.warning("No data in selected time window.")
-            return
-
-        df["gpu_energy"] = pd.to_numeric(df["gpu_energy"], errors="coerce")
-        df["emissions"] = pd.to_numeric(df["emissions"], errors="coerce")
-
-        fig, axes = plt.subplots(
-            1, 2,
-            figsize=(12, 6),
-        )
-        fig.suptitle('ResNet152 CodeCarbon, 5 Minutes', fontsize=16, fontweight='bold')
-
-        axes[0].plot(df["t"], df["gpu_energy"], linewidth=1.5)
-        axes[0].set_ylabel("GPU Energy (mWh)")
-        axes[0].set_xlabel("Time (seconds)")
-        axes[0].grid(alpha=0.3)
-
-        avg = df["gpu_energy"].mean()
-        axes[0].set_title(f"GPU Energy (15-step avg, Overall Avg: {avg:.2e}mWh)")
-
-        axes[0].set_ylim(bottom=0)
-        if df["gpu_energy"].max() > 0:
-            axes[0].set_ylim(top=df["gpu_energy"].max() * 1.1)
-
-        axes[1].plot(df["t"], df["emissions"], linewidth=1.5)
-        axes[1].set_ylabel("Emissions (kg CO₂eq)")
-        axes[1].set_xlabel("Time (seconds)")
-        axes[1].grid(alpha=0.3)
-
-        avg = df["emissions"].mean()
-        axes[1].set_title(f"Emissions (15-step avg, Overall Avg: {avg:.2e}kg CO₂eq)")
-
-        axes[1].set_ylim(bottom=0)
-        if df["emissions"].max() > 0:
-            axes[1].set_ylim(top=df["emissions"].max() * 1.1)
-
-        plt.tight_layout()
-
-        output = Path(self.output_dir) / f"timeline_cc_avg_{self.logging_timestamp}.png"
-        plt.savefig(output, dpi=150)
-        plt.close()
-
-        logger.info(f"Saved timeline plot to {output}")

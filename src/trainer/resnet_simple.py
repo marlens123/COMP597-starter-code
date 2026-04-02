@@ -11,7 +11,6 @@ import tqdm
 import time
 
 # Pre-computed approximations of the number of steps needed to train for 5 minutes (including logging overhead)
-# The first step is always much slower than the rest, so we exclude it from the calculations.
 pre_computed_num_steps = {
     "batch_size_32": 1292,
     "batch_size_64": 881,
@@ -83,7 +82,7 @@ class ResNetSimpleTrainer(SimpleTrainer):
 
         self.stats.start_train()
 
-        start_time = time.time()
+        start_time = time.perf_counter()  # Start the timer for the training loop
 
         # loop to enable restarting dataloader if we haven't reached the pre-computed number of steps for 5 minutes of training
         while steps < pre_computed_num_steps.get(f"batch_size_{self.loader.batch_size}", float('inf')):
@@ -109,7 +108,7 @@ class ResNetSimpleTrainer(SimpleTrainer):
                 steps += 1
 
                 # if time exceeds 5 minutes, break out of the loop and print the steps completed
-                if time.time() - start_time > 300: # 300 seconds = 5 minutes
+                if time.perf_counter() - start_time > 300: # 300 seconds = 5 minutes
                     print(f"Reached 5 minutes of training for {self.loader.batch_size}. Steps completed: {steps}.")
                     break
 
