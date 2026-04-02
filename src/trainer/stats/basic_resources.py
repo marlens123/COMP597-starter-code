@@ -152,6 +152,8 @@ class BasicResourcesStats(base.TrainerStats):
         self.cpu_before_step = self.process.cpu_times()
 
     def stop_step(self) -> None:
+        time_after = time.perf_counter()
+        step_time = time_after - self.time_before_step
         gpu_mem = (
             torch.cuda.memory_allocated(self.device) / 1024**2
             if torch.cuda.is_available() else 0
@@ -159,10 +161,7 @@ class BasicResourcesStats(base.TrainerStats):
         global_batch = self.batch_size * self.world_size
         throughput = global_batch / step_time if step_time > 0 else 0
 
-        time_after = time.perf_counter()
         ram_mem = psutil.virtual_memory().used / 1024**2
-
-        step_time = time_after - self.time_before_step
 
         self.step_writer.writerow({
             "step": self.step_idx,
