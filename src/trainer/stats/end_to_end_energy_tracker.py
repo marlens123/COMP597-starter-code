@@ -28,7 +28,7 @@ def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats
     else:
         logger.warning("No device provided to codecarbon trainer stats. Using default PyTorch device")
         device = torch.get_default_device() 
-    return CodeCarbonStatsResNet(device, conf.trainer_stats_configs.codecarbon.run_num, conf.trainer_stats_configs.codecarbon.project_name, conf.trainer_stats_configs.codecarbon.output_dir)
+    return EndToEndEnergyStats(device, conf.trainer_stats_configs.codecarbon.run_num, conf.trainer_stats_configs.codecarbon.project_name, conf.trainer_stats_configs.codecarbon.output_dir)
 
 class SimpleFileOutput(BaseOutput): 
     
@@ -177,18 +177,12 @@ class EndToEndEnergyStats(base.TrainerStats):
         )   
 
     def start_train(self) -> None:
-
-        self.start_time = time()
-
         torch.cuda.synchronize(self.device)
         self.total_training_tracker.start()
 
     def stop_train(self) -> None:
         torch.cuda.synchronize(self.device)
         self.total_training_tracker.stop()
-
-        self.end_time = time()
-        print(f"End-to-end time with one energy measurement: {self.end_time - self.start_time}.")
 
     def start_step(self, batch_size: int = None) -> None:
         pass

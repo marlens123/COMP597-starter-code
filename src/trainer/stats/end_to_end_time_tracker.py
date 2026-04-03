@@ -20,11 +20,10 @@ class EndToEndTrainerStats(base.TrainerStats):
         self.end_time = None
 
     def start_train(self) -> None:
-        self.start_time = time()
+        pass
 
     def stop_train(self) -> None:
-        self.end_time = time()
-        print(f"End-to-end time without logging: {self.end_time - self.start_time}.")
+        pass
 
     def start_step(self) -> None:
         pass

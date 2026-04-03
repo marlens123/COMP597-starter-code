@@ -12,9 +12,21 @@ import time
 
 # Pre-computed approximations of the number of steps needed to train for 5 minutes (including logging overhead)
 pre_computed_num_steps = {
-    "batch_size_32": 1292,
-    "batch_size_64": 881,
-    "batch_size_128": 294,
+    "end-to-end": {
+        "batch_size_32": 1000,
+        "batch_size_64": 850,
+        "batch_size_128": 250,
+    },
+    "fine-grained-basic": {
+        "batch_size_32": 1292,
+        "batch_size_64": 881,
+        "batch_size_128": 294,
+    },
+    "fine-grained-cc": {
+        "batch_size_32": 1292,
+        "batch_size_64": 881,
+        "batch_size_128": 294,
+    },
 }
 
 class ResNetSimpleTrainer(SimpleTrainer):
@@ -29,7 +41,12 @@ class ResNetSimpleTrainer(SimpleTrainer):
                  conf: Optional[config.Config] = None):
         super().__init__(loader=loader, model=model, optimizer=optimizer, lr_scheduler=lr_scheduler, device=device, stats=stats, conf=conf)
 
+        self.stats = stats
         self.criterion = nn.CrossEntropyLoss().to(self.model.device)
+
+        # default to end-to-end
+        self.stats_name = "fine-grained-basic" if conf.trainer_stats_name in ["basic_resources_stats"] else "fine-grained-cc" if conf.trainer_stats_name in ["codecarbon_resnet"] else "end-to-end"
+        print(f"Using pre-computed number of steps for {self.stats_name} with batch size {self.loader.batch_size}: {pre_computed_num_steps.get(self.stats_name).get(f'batch_size_{self.loader.batch_size}', 'N/A')} steps.")
 
     @override
     def process_batch(self, i : int, batch : Any) -> Any:
@@ -77,15 +94,17 @@ class ResNetSimpleTrainer(SimpleTrainer):
             `Trainer` and overrides the `train` method.
 
         """
+        start_time = time.perf_counter()  # Start the timer for the training loop
+
         progress_bar = tqdm.auto.tqdm(desc="loss: N/A")
         steps = 0
 
         self.stats.start_train()
 
-        start_time = time.perf_counter()  # Start the timer for the training loop
+        num_steps_to_train = pre_computed_num_steps.get(self.stats_name).get(f"batch_size_{self.loader.batch_size}", float('inf'))
 
         # loop to enable restarting dataloader if we haven't reached the pre-computed number of steps for 5 minutes of training
-        while steps < pre_computed_num_steps.get(f"batch_size_{self.loader.batch_size}", float('inf')):
+        while steps < num_steps_to_train:
             for i, batch in enumerate(self.loader):
                 self.stats.start_step()
                 loss, descr = self.step(i, batch, model_kwargs)
@@ -115,6 +134,9 @@ class ResNetSimpleTrainer(SimpleTrainer):
         self.stats.stop_train()
         progress_bar.close()
         self.stats.log_stats()
+
+        end_time = time.perf_counter()  # End the timer for the training loop
+        print(f"Total training time: {end_time - start_time:.2f} seconds.")
 
     def checkpoint_dict(self, i: int) -> Dict[str, Any]:
         super_dict = super().checkpoint_dict(i)
