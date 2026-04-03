@@ -13,9 +13,9 @@ import time
 # Pre-computed approximations of the number of steps needed to train for 5 minutes (including logging overhead)
 pre_computed_num_steps = {
     "end-to-end": {
-        "batch_size_32": 1000,
-        "batch_size_64": 850,
-        "batch_size_128": 250,
+        "batch_size_32": 1742,
+        "batch_size_64": 886,
+        "batch_size_128": 448,
     },
     "fine-grained-basic": {
         "batch_size_32": 1292,
@@ -136,7 +136,7 @@ class ResNetSimpleTrainer(SimpleTrainer):
         self.stats.log_stats()
 
         end_time = time.perf_counter()  # End the timer for the training loop
-        print(f"Total training time: {end_time - start_time:.2f} seconds.")
+        print(f"Total training time: {end_time - start_time:.2f} seconds after {steps} steps.")
 
     def checkpoint_dict(self, i: int) -> Dict[str, Any]:
         super_dict = super().checkpoint_dict(i)

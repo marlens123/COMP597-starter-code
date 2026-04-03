@@ -120,8 +120,6 @@ class BasicResourcesStats(base.TrainerStats):
         )
         self.timeline_writer.writeheader()
 
-
-
     def stop_train(self) -> None:
         self._cuda_sync()
 
