@@ -45,7 +45,7 @@ class ResNetSimpleTrainer(SimpleTrainer):
         self.criterion = nn.CrossEntropyLoss().to(self.model.device)
 
         # default to end-to-end
-        self.stats_name = "fine-grained-basic" if conf.trainer_stats_name in ["basic_resources_stats"] else "fine-grained-cc" if conf.trainer_stats_name in ["codecarbon_resnet"] else "end-to-end"
+        self.stats_name = "fine-grained-basic" if conf.trainer_stats in ["basic_resources_stats"] else "fine-grained-cc" if conf.trainer_stats_name in ["codecarbon_resnet"] else "end-to-end"
         print(f"Using pre-computed number of steps for {self.stats_name} with batch size {self.loader.batch_size}: {pre_computed_num_steps.get(self.stats_name).get(f'batch_size_{self.loader.batch_size}', 'N/A')} steps.")
 
     @override
