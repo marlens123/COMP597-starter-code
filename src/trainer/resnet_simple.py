@@ -94,7 +94,7 @@ class ResNetSimpleTrainer(SimpleTrainer):
             `Trainer` and overrides the `train` method.
 
         """
-        start_time = time.perf_counter()  # Start the timer for the training loop
+        start_time = time.perf_counter_ns()  # Start the timer for the training loop
 
         progress_bar = tqdm.auto.tqdm(desc="loss: N/A")
         steps = 0
@@ -127,7 +127,7 @@ class ResNetSimpleTrainer(SimpleTrainer):
                 steps += 1
 
                 # if time exceeds 5 minutes, break out of the loop and print the steps completed
-                if time.perf_counter() - start_time > 300: # 300 seconds = 5 minutes
+                if time.perf_counter_ns() - start_time > 300: # 300 seconds = 5 minutes
                     print(f"Reached 5 minutes of training for {self.loader.batch_size}. Steps completed: {steps}.")
                     #break
 
@@ -135,7 +135,7 @@ class ResNetSimpleTrainer(SimpleTrainer):
         progress_bar.close()
         self.stats.log_stats()
 
-        end_time = time.perf_counter()  # End the timer for the training loop
+        end_time = time.perf_counter_ns()  # End the timer for the training loop
         print(f"Total training time: {end_time - start_time:.2f} seconds after {steps} steps.")
 
     def checkpoint_dict(self, i: int) -> Dict[str, Any]:

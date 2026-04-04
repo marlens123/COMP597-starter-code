@@ -14,6 +14,7 @@ import src.config as config
 import src.trainer.stats.base as base
 import torch
 import time
+import utils
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +177,9 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         self.batch_size = batch_size
         self.tracker_runs = False
 
-        self.logging_timestamp = time.perf_counter()   # used to differentiate logs from different runs
+        self.step_stats = utils.RunningTimer()
+
+        self.logging_timestamp = time.perf_counter_ns()   # used to differentiate logs from different runs
 
         # Task-mode tracker to track steps (iterations) within the training loop
         self.training_step_tracker = OfflineEmissionsTracker(
@@ -202,9 +205,12 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         torch.cuda.synchronize(self.device)
         
         self.training_step_tracker.stop()
+        print(f"AVG : step {self.step_stats.get_average() / 1000000} ms")
 
     def start_step(self) -> None:
         self.iteration += 1
+
+        self.step_stats.start()
 
         if self.iteration % pre_computed_cpu_interval[f"batch_size_{self.batch_size}"] == 0: # log every N steps based on batch size
             torch.cuda.synchronize(self.device)
@@ -214,6 +220,8 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             self.tracker_runs = False
 
     def stop_step(self) -> None:
+
+        self.step_stats.stop()
 
         if self.tracker_runs:
             torch.cuda.synchronize(self.device)

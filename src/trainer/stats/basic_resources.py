@@ -63,7 +63,7 @@ class BasicResourcesStats(base.TrainerStats):
             self.gpu_handle = None
 
         self.output_path = output_path
-        self.logging_timestamp = int(time.perf_counter())   # used to differentiate logs from different runs
+        self.logging_timestamp = int(time.perf_counter_ns())   # used to differentiate logs from different runs
 
         Path(self.output_path).mkdir(parents=True, exist_ok=True)
 
@@ -97,7 +97,7 @@ class BasicResourcesStats(base.TrainerStats):
 
     def start_train(self) -> None:
         self._cuda_sync()
-        self.training_time_start = time.perf_counter()
+        self.training_time_start = time.perf_counter_ns()
 
         self.step_file = open(self.step_csv_path, mode="w", newline="")
         self.step_writer = csv.DictWriter(
@@ -136,17 +136,17 @@ class BasicResourcesStats(base.TrainerStats):
             if self.nvml_initialized:
                 pynvml.nvmlShutdown()
 
-        total_time = time.perf_counter() - self.training_time_start
+        total_time = time.perf_counter_ns() - self.training_time_start
 
         print(f"End-to-end training time with logging: {total_time}.")
         print("Saved stats to:", self.output_path)
 
     def start_step(self) -> None:
-        self.time_before_step = time.perf_counter()
+        self.time_before_step = time.perf_counter_ns()
         self.cpu_before_step = self.process.cpu_times()
 
     def stop_step(self) -> None:
-        time_after = time.perf_counter()
+        time_after = time.perf_counter_ns()
         step_time = time_after - self.time_before_step
         gpu_mem = (
             torch.cuda.memory_allocated(self.device) / 1024**2
@@ -159,7 +159,7 @@ class BasicResourcesStats(base.TrainerStats):
 
         self.step_writer.writerow({
             "step": self.step_idx,
-            "step_end_timestamp": time.perf_counter(),
+            "step_end_timestamp": time.perf_counter_ns(),
             "time_sec": step_time,
             "throughput_samples_per_sec": throughput,
             "ram_mb": ram_mem,
@@ -196,21 +196,21 @@ class BasicResourcesStats(base.TrainerStats):
 
     def start_forward(self) -> None:
         self._cuda_sync()
-        self.substep_start = time.perf_counter()
+        self.substep_start = time.perf_counter_ns()
 
     def stop_forward(self) -> None:
         self._log_substep("forward")
 
     def start_backward(self) -> None:
         self._cuda_sync()
-        self.substep_start = time.perf_counter()
+        self.substep_start = time.perf_counter_ns()
 
     def stop_backward(self) -> None:
         self._log_substep("backward")
 
     def start_optimizer_step(self) -> None:
         self._cuda_sync()
-        self.substep_start = time.perf_counter()
+        self.substep_start = time.perf_counter_ns()
 
     def stop_optimizer_step(self) -> None:
         self._log_substep("optimizer")
@@ -218,11 +218,11 @@ class BasicResourcesStats(base.TrainerStats):
     def _log_substep(self, name: str):
         self._cuda_sync()
 
-        duration = time.perf_counter() - self.substep_start
+        duration = time.perf_counter_ns() - self.substep_start
 
         row = {
             "step": self.step_idx,
-            "substep_end_timestamp": time.perf_counter(),
+            "substep_end_timestamp": time.perf_counter_ns(),
             "substep": name,
             "time_sec": duration,
         }
