@@ -205,6 +205,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         torch.cuda.synchronize(self.device)
         
         self.training_step_tracker.stop()
+        print(f"LAST : step {self.step_stats.get_last() / 1000000} ms")
         print(f"AVG : step {self.step_stats.get_average() / 1000000} ms")
 
     def start_step(self) -> None:
