@@ -129,7 +129,7 @@ class ResNetSimpleTrainer(SimpleTrainer):
                 # if time exceeds 5 minutes, break out of the loop and print the steps completed
                 if time.perf_counter_ns() - start_time > 300: # 300 seconds = 5 minutes
                     print(f"Reached 5 minutes of training for {self.loader.batch_size}. Steps completed: {steps}.")
-                    #break
+                    break
 
         self.stats.stop_train()
         progress_bar.close()
