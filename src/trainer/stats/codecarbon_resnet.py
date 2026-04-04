@@ -14,7 +14,7 @@ import src.config as config
 import src.trainer.stats.base as base
 import torch
 import time
-import utils
+import src.trainer.stats.utils as utils
 
 logger = logging.getLogger(__name__)
 
