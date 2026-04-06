@@ -11,10 +11,11 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
     --trainer_stats basic_resources_stats \
-    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs'
+    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs' \
+    --seed 42
 
 ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
@@ -22,10 +23,11 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 64 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
     --trainer_stats basic_resources_stats \
-    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs'
+    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs' \
+    --seed 42
 
 ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
@@ -33,10 +35,11 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 128 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
     --trainer_stats basic_resources_stats \
-    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs'
+    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs' \
+    --seed 42
 
     ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
@@ -44,10 +47,11 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
     --trainer_stats basic_resources_stats \
-    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs'
+    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs' \
+    --seed 84
 
 ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
@@ -55,10 +59,11 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 64 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
     --trainer_stats basic_resources_stats \
-    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs'
+    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs' \
+    --seed 84
 
 ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
@@ -66,10 +71,11 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 128 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
     --trainer_stats basic_resources_stats \
-    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs'
+    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs' \
+    --seed 84
 
     ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
@@ -77,10 +83,11 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
     --trainer_stats basic_resources_stats \
-    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs'
+    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs' \
+    --seed 120
 
 ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
@@ -88,10 +95,11 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 64 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
     --trainer_stats basic_resources_stats \
-    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs'
+    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs' \
+    --seed 120
 
 ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
@@ -99,7 +107,8 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 128 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
     --trainer_stats basic_resources_stats \
-    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs'
+    --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs' \
+    --seed 120

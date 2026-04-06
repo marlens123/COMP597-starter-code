@@ -11,7 +11,7 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 128 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
     --trainer_stats basic_resources_stats \
     --trainer_configs.basic_resources.output_dir '${COMP597_JOB_STUDENT_STORAGE_DIR}/resnet/basic_resources_logs'
@@ -22,7 +22,7 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 128 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
     --trainer_stats codecarbon_resnet \
     --trainer_stats_configs.codecarbon.run_num 300 \

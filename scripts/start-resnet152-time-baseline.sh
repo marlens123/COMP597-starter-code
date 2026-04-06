@@ -5,15 +5,116 @@ REPO_DIR=$(readlink -f -n ${SCRIPTS_DIR}/..)
 
 
 ### run ResNet152 End-to-end Resource Trainer
+#${SCRIPTS_DIR}/srun.sh \
+#    --logging.level INFO \
+#    --model resnet152 \
+#    --data fakeimagenet \
+#    --trainer resnet_simple \
+#    --batch_size 32 \
+#    --learning_rate 0.01 \
+#    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+#    --trainer_stats end_to_end_time_stats \
+#    --seed 42
+
+#${SCRIPTS_DIR}/srun.sh \
+#    --logging.level INFO \
+#    --model resnet152 \
+#    --data fakeimagenet \
+#    --trainer resnet_simple \
+#    --batch_size 64 \
+#    --learning_rate 0.01 \
+#    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+#    --trainer_stats end_to_end_time_stats \
+#    --seed 42
+
+#${SCRIPTS_DIR}/srun.sh \
+#    --logging.level INFO \
+#    --model resnet152 \
+#    --data fakeimagenet \
+#    --trainer resnet_simple \
+#    --batch_size 128 \
+#    --learning_rate 0.01 \
+#    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+#    --trainer_stats end_to_end_time_stats \
+#    --seed 42
+
+#${SCRIPTS_DIR}/srun.sh \
+#    --logging.level INFO \
+#    --model resnet152 \
+#    --data fakeimagenet \
+#    --trainer resnet_simple \
+#    --batch_size 32 \
+#    --learning_rate 0.01 \
+#    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+#    --trainer_stats end_to_end_time_stats \
+#    --seed 84
+
+#${SCRIPTS_DIR}/srun.sh \
+#    --logging.level INFO \
+#    --model resnet152 \
+#    --data fakeimagenet \
+#    --trainer resnet_simple \
+#    --batch_size 64 \
+#    --learning_rate 0.01 \
+#    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+#    --trainer_stats end_to_end_time_stats \
+#    --seed 84
+
+#${SCRIPTS_DIR}/srun.sh \
+#    --logging.level INFO \
+#    --model resnet152 \
+#    --data fakeimagenet \
+#    --trainer resnet_simple \
+#    --batch_size 128 \
+#    --learning_rate 0.01 \
+#    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+#    --trainer_stats end_to_end_time_stats \
+#    --seed 84
+
+#${SCRIPTS_DIR}/srun.sh \
+#    --logging.level INFO \
+#    --model resnet152 \
+#    --data fakeimagenet \
+#    --trainer resnet_simple \
+#    --batch_size 32 \
+#    --learning_rate 0.01 \
+#    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+#    --trainer_stats end_to_end_time_stats \
+#    --seed 120
+
+#${SCRIPTS_DIR}/srun.sh \
+#    --logging.level INFO \
+#    --model resnet152 \
+#    --data fakeimagenet \
+#    --trainer resnet_simple \
+#    --batch_size 64 \
+#    --learning_rate 0.01 \
+#    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+#    --trainer_stats end_to_end_time_stats \
+#    --seed 120
+
+#${SCRIPTS_DIR}/srun.sh \
+#    --logging.level INFO \
+#    --model resnet152 \
+#    --data fakeimagenet \
+#    --trainer resnet_simple \
+#    --batch_size 128 \
+#    --learning_rate 0.01 \
+#    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+#    --trainer_stats end_to_end_time_stats \
+#    --seed 120
+
+### run ResNet152 End-to-end Resource Trainer
 ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
     --model resnet152 \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
-    --trainer_stats end_to_end_time_stats \
+    --trainer_stats end_to_end_energy_stats \
+    --seed 42
 
 ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
@@ -21,9 +122,10 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 64 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
-    --trainer_stats end_to_end_time_stats \
+    --trainer_stats end_to_end_energy_stats \
+    --seed 42
 
 ${SCRIPTS_DIR}/srun.sh \
     --logging.level INFO \
@@ -31,6 +133,75 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 128 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
-    --trainer_stats end_to_end_time_stats \
+    --trainer_stats end_to_end_energy_stats \
+    --seed 42
+
+### run ResNet152 End-to-end Resource Trainer
+${SCRIPTS_DIR}/srun.sh \
+    --logging.level INFO \
+    --model resnet152 \
+    --data fakeimagenet \
+    --trainer resnet_simple \
+    --batch_size 32 \
+    --learning_rate 0.01 \
+    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+    --trainer_stats end_to_end_energy_stats \
+    --seed 84
+
+${SCRIPTS_DIR}/srun.sh \
+    --logging.level INFO \
+    --model resnet152 \
+    --data fakeimagenet \
+    --trainer resnet_simple \
+    --batch_size 64 \
+    --learning_rate 0.01 \
+    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+    --trainer_stats end_to_end_energy_stats \
+    --seed 84
+
+${SCRIPTS_DIR}/srun.sh \
+    --logging.level INFO \
+    --model resnet152 \
+    --data fakeimagenet \
+    --trainer resnet_simple \
+    --batch_size 128 \
+    --learning_rate 0.01 \
+    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+    --trainer_stats end_to_end_energy_stats \
+    --seed 84
+
+### run ResNet152 End-to-end Resource Trainer
+${SCRIPTS_DIR}/srun.sh \
+    --logging.level INFO \
+    --model resnet152 \
+    --data fakeimagenet \
+    --trainer resnet_simple \
+    --batch_size 32 \
+    --learning_rate 0.01 \
+    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+    --trainer_stats end_to_end_energy_stats \
+    --seed 120
+
+${SCRIPTS_DIR}/srun.sh \
+    --logging.level INFO \
+    --model resnet152 \
+    --data fakeimagenet \
+    --trainer resnet_simple \
+    --batch_size 64 \
+    --learning_rate 0.01 \
+    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+    --trainer_stats end_to_end_energy_stats \
+    --seed 120
+
+${SCRIPTS_DIR}/srun.sh \
+    --logging.level INFO \
+    --model resnet152 \
+    --data fakeimagenet \
+    --trainer resnet_simple \
+    --batch_size 128 \
+    --learning_rate 0.01 \
+    --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
+    --trainer_stats end_to_end_energy_stats \
+    --seed 120

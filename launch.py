@@ -16,6 +16,7 @@ import src.data as data
 import src.models as models
 import src.trainer as trainer
 import src.trainer.stats as trainer_stats
+from src.utils import seed_everything
 
 def setup_logging(conf : config.Config) -> None:
     logging.basicConfig(
@@ -46,6 +47,10 @@ def get_conf() -> config.Config:
 
 def main():
     conf = get_conf()
+    
+    print("Using seed:", conf.seed)
+    seed_everything(seed=conf.seed)
+
     setup_logging(conf)
     logger.debug(f"Configuration: \n{conf}")
     logger.info(f"available models: {models.get_available_models()}")

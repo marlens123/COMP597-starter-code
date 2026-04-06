@@ -10,7 +10,7 @@ ${SCRIPTS_DIR}/srun.sh \
     --data fakeimagenet \
     --trainer resnet_simple \
     --batch_size 8 \
-    --learning_rate 1e-6 \
+    --learning_rate 0.01 \
     --data_configs.fakeimagenet.folder '${COMP597_JOB_STUDENT_STORAGE_DIR}/fakeimagenet/FakeImageNet/train' \
     --trainer_stats codecarbon_resnet \
     --trainer_stats_configs.codecarbon.run_num 1 \
