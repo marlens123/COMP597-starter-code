@@ -14,7 +14,7 @@ import src.config as config
 import src.trainer.stats.base as base
 import torch
 import time
-import src.trainer.stats.utils as utils
+import src.trainer.stats.utils as stats_utils
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def construct_trainer_stats(conf : config.Config, **kwargs) -> base.TrainerStats
     else:
         logger.warning("No device provided to codecarbon trainer stats. Using default PyTorch device")
         device = torch.get_default_device() 
-    return CodeCarbonStatsResNet(device, conf.trainer_stats_configs.codecarbon.run_num, conf.trainer_stats_configs.codecarbon.project_name, conf.trainer_stats_configs.codecarbon.output_dir, conf.batch_size)
+    return CodeCarbonStatsResNet(device, conf.trainer_stats_configs.codecarbon.run_num, conf.trainer_stats_configs.codecarbon.project_name, conf.trainer_stats_configs.codecarbon.output_dir, conf.batch_size, conf.seed)
 
 class SimpleFileOutput(BaseOutput): 
     
@@ -157,10 +157,11 @@ class CodeCarbonStatsResNet(base.TrainerStats):
 
     """
 
-    def __init__(self, device : torch.device, run_num : int, project_name : str, output_dir : str, batch_size : int) -> None: 
+    def __init__(self, device : torch.device, run_num : int, project_name : str, output_dir : str, batch_size : int, seed : int) -> None: 
         
         # Track current iteration number in the training loop
         self.iteration = 0
+        self.seed = seed
         
         # CUDA device indicates the current GPU assigned to this process (0, 1, 2, ...)
         self.device = device
@@ -177,7 +178,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         self.batch_size = batch_size
         self.tracker_runs = False
 
-        self.step_stats = utils.RunningTimer()
+        self.step_stats = stats_utils.RunningTimer()
 
         self.logging_timestamp = time.perf_counter_ns()   # used to differentiate logs from different runs
 
@@ -188,7 +189,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             country_iso_code = "CAN", 
             region = "quebec", 
             save_to_file = False, 
-            output_handlers = [SimpleFileOutput(output_file_name = f"{self.run_number}cc_step_rank_{self.gpu_id}_batch_size_{self.batch_size}_{self.logging_timestamp}.csv", output_dir=output_dir)],
+            output_handlers = [SimpleFileOutput(output_file_name = f"{self.run_number}cc_step_rank_{self.gpu_id}_batch_size_{self.batch_size}_seed_{self.seed}_{self.logging_timestamp}.csv", output_dir=output_dir)],
             allow_multiple_runs = True, 
             api_call_interval = -1, 
             gpu_ids = [self.gpu_id],
@@ -196,7 +197,9 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         )
 
         # Initialise task-mode trackers
-        self.training_step_tracker.start()       
+        self.training_step_tracker.start()      
+
+        self.energy_stats = stats_utils.RunningEnergy(gpu_index=device.index) 
 
     def start_train(self) -> None:
         torch.cuda.synchronize(self.device)
@@ -217,6 +220,7 @@ class CodeCarbonStatsResNet(base.TrainerStats):
             torch.cuda.synchronize(self.device)
             self.tracker_runs = True
             self.training_step_tracker.start_task(task_name = f"Step #{self.iteration}")
+            self.energy_stats.start()
         else:
             self.tracker_runs = False
 
@@ -227,6 +231,13 @@ class CodeCarbonStatsResNet(base.TrainerStats):
         if self.tracker_runs:
             torch.cuda.synchronize(self.device)
             self.training_step_tracker.stop_task(task_name = f"Step #{self.iteration}")
+            self.energy_stats.stop()
+
+    def start_dataloading(self) -> None:
+        pass
+
+    def stop_dataloading(self) -> None:
+        pass
 
     def start_forward(self) -> None: 
         pass

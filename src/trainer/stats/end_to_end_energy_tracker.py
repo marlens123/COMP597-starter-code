@@ -190,6 +190,12 @@ class EndToEndEnergyStats(base.TrainerStats):
     def stop_step(self) -> None:
         pass
 
+    def start_dataloading(self) -> None:
+        pass
+
+    def stop_dataloading(self) -> None:
+        pass
+
     def start_forward(self) -> None: 
         pass
 

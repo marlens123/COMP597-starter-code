@@ -11,21 +11,51 @@ import tqdm
 import time
 
 # Pre-computed approximations of the number of steps needed to train for 5 minutes (including logging overhead)
+"""
 pre_computed_num_steps = {
-    "end-to-end": {
-        "batch_size_32": 1742,
-        "batch_size_64": 886,
-        "batch_size_128": 448,
+    "end-to-end-time": {
+        "batch_size_32": 1742, # 1772 1778 1777
+        "batch_size_64": 886, # 905 903 899
+        "batch_size_128": 448, # 464 458 450
+    },
+    "end-to-end-energy": {
+        "batch_size_32": 1742, # 1786 1780 1771
+        "batch_size_64": 886, # 893 905 900
+        "batch_size_128": 448, # 430 457 459
     },
     "fine-grained-basic": {
-        "batch_size_32": 1292,
-        "batch_size_64": 881,
-        "batch_size_128": 294,
+        "batch_size_32": 1292, # 1179 1178 1173
+        "batch_size_64": 881, # 593 593 582
+        "batch_size_128": 294, # 302 301 300
     },
     "fine-grained-cc": {
-        "batch_size_32": 1292,
-        "batch_size_64": 881,
-        "batch_size_128": 294,
+        "batch_size_32": 1292, # 1486 1485 1480
+        "batch_size_64": 881, # 716 713 712
+        "batch_size_128": 294, # 302 301 301
+    },
+}
+"""
+
+pre_computed_num_steps = {
+    "end-to-end-time": {
+        "batch_size_32": 1776, # 1772 1778 1777
+        "batch_size_64": 902, # 905 903 899
+        "batch_size_128": 457, # 464 458 450
+    },
+    "end-to-end-energy": {
+        "batch_size_32": 1776, # 1779: 1786 1780 1771
+        "batch_size_64": 902, # 899: 893 905 900
+        "batch_size_128": 457, # 449: 430 457 459
+    },
+    "fine-grained-basic": {
+        "batch_size_32": 1776, # 1177: 1179 1178 1173
+        "batch_size_64": 902, # 589: 593 593 582
+        "batch_size_128": 457, # 301: 302 301 300
+    },
+    "fine-grained-cc": {
+        "batch_size_32": 1776, # 1484: 1486 1485 1480
+        "batch_size_64": 902, # 714: 716 713 712
+        "batch_size_128": 457, # 301: 302 301 301
     },
 }
 
@@ -41,17 +71,20 @@ class ResNetSimpleTrainer(SimpleTrainer):
                  conf: Optional[config.Config] = None):
         super().__init__(loader=loader, model=model, optimizer=optimizer, lr_scheduler=lr_scheduler, device=device, stats=stats, conf=conf)
 
+        self.model = self.model.to(self.device).float()
+
         self.stats = stats
         self.criterion = nn.CrossEntropyLoss().to(self.model.device)
 
         # default to end-to-end
-        self.stats_name = "fine-grained-basic" if conf.trainer_stats in ["basic_resources_stats"] else "fine-grained-cc" if conf.trainer_stats in ["codecarbon_resnet"] else "end-to-end"
+        self.stats_name = "fine-grained-basic" if conf.trainer_stats in ["basic_resources_stats"] else "fine-grained-cc" if conf.trainer_stats in ["codecarbon_resnet"] else "end-to-end-time" if conf.trainer_stats in ["end_to_end_time_stats"] else "end-to-end-energy" if conf.trainer_stats in ["end_to_end_energy_stats"] else "None"
         print(f"Using pre-computed number of steps for {self.stats_name} with batch size {self.loader.batch_size}: {pre_computed_num_steps.get(self.stats_name).get(f'batch_size_{self.loader.batch_size}', 'N/A')} steps.")
 
     @override
     def process_batch(self, i : int, batch : Any) -> Any:
         if isinstance(batch, (list, tuple)):
-            return [v.to(self.device) for v in batch]
+            input, target = batch
+            return input.to(self.device).float(), target.to(self.device).long()
         else:
             raise TypeError(f"Unsupported batch type {type(batch)}")
         
@@ -96,43 +129,43 @@ class ResNetSimpleTrainer(SimpleTrainer):
         """
         start_time = time.perf_counter_ns()  # Start the timer for the training loop
 
-        progress_bar = tqdm.auto.tqdm(desc="loss: N/A")
+        num_steps_to_train = pre_computed_num_steps.get(self.stats_name).get(f"batch_size_{self.loader.batch_size}", float('inf'))
         steps = 0
 
         self.stats.start_train()
 
-        num_steps_to_train = pre_computed_num_steps.get(self.stats_name).get(f"batch_size_{self.loader.batch_size}", float('inf'))
+        loader_iter = iter(self.loader)
 
-        # loop to enable restarting dataloader if we haven't reached the pre-computed number of steps for 5 minutes of training
         while steps < num_steps_to_train:
-            for i, batch in enumerate(self.loader):
-                self.stats.start_step()
-                loss, descr = self.step(i, batch, model_kwargs)
-                self.stats.stop_step()
+            try:
+                self.stats.start_dataloading()
+                batch = next(loader_iter)
+                self.stats.stop_dataloading()
+            except StopIteration:
+                loader_iter = iter(self.loader)
+                continue
 
-                if self.enable_checkpointing and self.should_save_checkpoint(i):
-                    self.stats.start_save_checkpoint()
-                    self.save_checkpoint(i)
-                    self.stats.stop_save_checkpoint()
+            self.stats.start_step()
+            loss, descr = self.step(steps, batch, model_kwargs)
+            self.stats.stop_step()
 
-                # logging
-                self.stats.log_loss(loss)
-                self.stats.log_step()
+            if self.enable_checkpointing and self.should_save_checkpoint(steps):
+                self.stats.start_save_checkpoint()
+                self.save_checkpoint(steps)
+                self.stats.stop_save_checkpoint()
 
-                if descr is not None:
-                    progress_bar.clear()
-                progress_bar.clear()
-                progress_bar.update(1)
+            # logging
+            self.stats.log_loss(loss)
+            self.stats.log_step()
 
-                steps += 1
+            steps += 1
 
-                # if time exceeds 5 minutes, break out of the loop and print the steps completed
-                if time.perf_counter_ns() - start_time > 300: # 300 seconds = 5 minutes
-                    print(f"Reached 5 minutes of training for {self.loader.batch_size}. Steps completed: {steps}.")
-                    break
+            # if time exceeds 5 minutes, break out of the loop and print the steps completed
+            #if time.perf_counter_ns() - start_time > 300000000000: # 300 seconds = 5 minutes
+            #    print(f"Reached 5 minutes of training for {self.loader.batch_size}. Steps completed: {steps}.")
+            #    break
 
         self.stats.stop_train()
-        progress_bar.close()
         self.stats.log_stats()
 
         end_time = time.perf_counter_ns()  # End the timer for the training loop

@@ -9,7 +9,7 @@ from typing import Dict, Optional, Tuple
 import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as data
-from torchvision.models import resnet152
+from torchvision.models import resnet152, resnet50
 import argparse
 from pathlib import Path
 import torch

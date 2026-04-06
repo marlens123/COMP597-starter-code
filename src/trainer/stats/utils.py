@@ -198,7 +198,7 @@ class RunningEnergy:
 
     """
 
-    def __init__(self, gpu_index : int) -> None:
+    def __init__(self, gpu_index : int=None) -> None:
         self.stat = RunningStat()
         self.start_energy = 0
         if gpu_index is None:
